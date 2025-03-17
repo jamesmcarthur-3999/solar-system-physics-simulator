@@ -15,7 +15,11 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Allow ES modules in the renderer process
+      worldSafeExecuteJavaScript: true,
+      // Enable remote content debugging in development
+      webSecurity: process.env.NODE_ENV !== 'development'
     },
     show: false
   });
@@ -39,6 +43,12 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// Allow loading local ES modules in the renderer process
+app.commandLine.appendSwitch('allow-insecure-localhost');
+app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer');
+// Set NODE_ENV to development to enable debugging features
+process.env.NODE_ENV = 'development';
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
