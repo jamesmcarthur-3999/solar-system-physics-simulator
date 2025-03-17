@@ -1,11 +1,18 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, protocol } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // Keep a global reference of the window object to prevent it from being garbage collected
 let mainWindow;
 
 function createWindow() {
+  // Set up protocol for loading local files more reliably
+  protocol.registerFileProtocol('app', (request, callback) => {
+    const url = request.url.substr(6);
+    callback({ path: path.normalize(`${__dirname}/${url}`) });
+  });
+
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -16,10 +23,13 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      enableRemoteModule: false,
+      // Allow loading files from local filesystem
+      webSecurity: false,
       // Allow ES modules in the renderer process
       worldSafeExecuteJavaScript: true,
-      // Enable remote content debugging in development
-      webSecurity: process.env.NODE_ENV !== 'development'
+      // Important: This allows the preload script to work with imported modules
+      sandbox: false
     },
     show: false
   });
@@ -28,9 +38,7 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'ui', 'index.html'));
 
   // Open the DevTools in development mode
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
+  mainWindow.webContents.openDevTools();
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
@@ -42,6 +50,14 @@ function createWindow() {
     // Dereference the window object
     mainWindow = null;
   });
+  
+  // Handle webContents creation for security
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // Only allow navigation to local files
+    if (!url.startsWith('file://')) {
+      event.preventDefault();
+    }
+  });
 }
 
 // Allow loading local ES modules in the renderer process
@@ -52,6 +68,17 @@ process.env.NODE_ENV = 'development';
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
+  // Register our custom protocol
+  protocol.registerFileProtocol('solar-app', (request, callback) => {
+    const url = request.url.replace('solar-app://', '');
+    try {
+      return callback(path.join(__dirname, url));
+    } catch (error) {
+      console.error(error);
+      return callback(404);
+    }
+  });
+  
   createWindow();
 
   app.on('activate', () => {
