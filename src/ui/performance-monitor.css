@@ -1,0 +1,213 @@
+/* Performance Monitor Styles */
+.performance-panel {
+  position: absolute;
+  left: 20px;
+  top: 80px;
+  width: 250px;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  color: white;
+  font-family: Arial, sans-serif;
+  z-index: 100;
+  overflow: hidden;
+}
+
+/* Panel header */
+.performance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: rgba(40, 40, 40, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+.performance-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.toggle-button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.toggle-button:hover {
+  color: white;
+}
+
+/* Panel content */
+.performance-content {
+  padding: 10px 16px;
+}
+
+/* Metrics display */
+.metrics-display {
+  margin-bottom: 15px;
+}
+
+.metrics-display table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.metrics-display td {
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.metrics-display td:first-child {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.metrics-display td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Optimization controls */
+.optimization-controls {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+/* Toggle container */
+.toggle-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.toggle-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.2);
+  transition: .4s;
+  border-radius: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #4CAF50;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #4CAF50;
+}
+
+input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .performance-panel {
+    width: 200px;
+    left: 10px;
+    top: 70px;
+  }
+}
+
+/* FPS Color indicators */
+.metrics-display tr:first-child td:last-child {
+  transition: color 0.5s ease;
+}
+
+.fps-good {
+  color: #4CAF50 !important;
+}
+
+.fps-medium {
+  color: #FFC107 !important;
+}
+
+.fps-poor {
+  color: #F44336 !important;
+}
+
+/* Performance impact warning */
+.impact-warning {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: rgba(244, 67, 54, 0.2);
+  border-radius: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+  display: none;
+}
+
+.impact-warning.show {
+  display: block;
+}
+
+/* Button for toggling performance monitor */
+.toggle-performance-button {
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.toggle-performance-button:hover {
+  background-color: rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.toggle-performance-button .performance-icon {
+  margin-right: 5px;
+  font-size: 14px;
+}
