@@ -28,6 +28,24 @@ The simulator includes several educational components:
 - **Scientific Data**: Comprehensive information about each celestial body
 - **Visual Effects**: Realistic atmospheric effects, ring systems, and lighting
 
+## Physics Model
+
+The simulator uses a sophisticated physics model to accurately represent celestial mechanics:
+
+- **Newtonian Gravity**: Universal gravitational attraction between all bodies
+- **Barnes-Hut Algorithm**: Optimized gravity calculations with O(n log n) complexity
+- **Adaptive Time Steps**: Maintains stability at high time scales
+- **Orbital Mechanics**: Accurately simulates orbital dynamics, including perturbations
+- **Collision Detection**: Basic detection and response for object collisions
+- **Spacecraft Trajectories**: (Planned) Realistic orbital mechanics for spacecraft
+
+The physics engine models the following forces and phenomena:
+
+- Gravitational attraction between all celestial bodies
+- Rotational dynamics of planets and moons
+- Atmospheric effects and their visual representation
+- Orbital stability and perturbation
+
 ## Technical Architecture
 
 - **Electron**: Cross-platform desktop application framework
@@ -89,6 +107,22 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed development plans.
 - Configure parameters such as mass, radius, position, and velocity
 - Advanced options allow setting custom textures, atmospheres, and other properties
 
+## Performance Considerations
+
+The application is optimized for performance in several ways:
+
+- **Barnes-Hut Algorithm**: Reduces gravity calculations from O(n²) to O(n log n)
+- **Level-of-Detail Rendering**: Adjusts detail based on distance for better performance
+- **Adaptive Physics Resolution**: Adjusts calculation precision based on time scale
+- **Optimized Textures**: Uses efficient texture formats and resolutions
+- **Selective Rendering**: Only renders what's visible in the current view
+
+For optimal performance:
+
+- Limit the number of objects to fewer than 100 for most systems
+- Use simpler configurations for less powerful hardware
+- Consider reducing texture quality in the settings if needed
+
 ## Project Documentation
 
 - [Project Guide](docs/PROJECT_GUIDE.md): Overview of project architecture and goals
@@ -104,6 +138,24 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed development plans.
 3. Create a feature branch for your work
 4. Submit a pull request with your changes
 5. Update documentation as needed
+
+## Contributing
+
+Contributions to this project are welcome! Here's how you can contribute:
+
+1. **Bug Reports**: Submit issues for any bugs or problems you encounter
+2. **Feature Requests**: Suggest new features or improvements
+3. **Code Contributions**: Submit pull requests for bug fixes or new features
+4. **Documentation**: Help improve or expand the documentation
+5. **Testing**: Test the application on different platforms and report issues
+
+Please follow these guidelines when contributing:
+
+- Follow the existing code style and conventions
+- Write clear commit messages that explain your changes
+- Update documentation to reflect any changes
+- Add tests for new features when possible
+- Ensure your changes don't break existing functionality
 
 ## Directory Structure
 
@@ -123,6 +175,52 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed development plans.
 ├── docs/                  # Documentation
 └── package.json           # Project configuration
 ```
+
+## Extending the Application
+
+The simulator is designed to be extensible. Here are some ways to extend its functionality:
+
+### Adding New Celestial Body Types
+
+1. Extend the `CelestialObject` class in `src/data/celestialObject.js`
+2. Add new properties and methods specific to the new type
+3. Update the UI to support creating and editing the new type
+
+### Creating New Educational Content
+
+1. Add new tours in `src/ui/tourManager.js`
+2. Add new information panels in `src/ui/informationPanelManager.js`
+3. Update the educational menu in `src/ui/educationalMenu.js`
+
+### Adding Custom Physics
+
+1. Modify the physics engine in `src/physics/gravitySimulator.js`
+2. Add new force calculations or interactions
+3. Update the visualization to represent the new physics
+
+## Future Roadmap
+
+Beyond the immediate next steps, the project roadmap includes:
+
+1. **Advanced Educational Features**:
+   - Interactive experiments with modifiable parameters
+   - Comparative visualization of different physical models
+   - Scenario-based learning modules
+
+2. **Extended Simulation Capabilities**:
+   - Exoplanet system simulation
+   - Star formation and evolution
+   - Galaxy-scale simulations
+
+3. **Integration with External Data**:
+   - Import real astronomical data from NASA, ESA, etc.
+   - Integration with sky observation tools
+   - Real-time updates based on current astronomical events
+
+4. **Community Features**:
+   - Shared simulation configurations
+   - User-created educational content
+   - Classroom-focused features for educators
 
 ## Technical Priorities
 
@@ -151,6 +249,29 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed implementation guidance.
    - Added system selector for switching between configurations
    - Implemented keyboard shortcuts for common actions
    - Enhanced camera controls and navigation
+
+## Acknowledgments
+
+- Planet and star textures are sourced from [Solar System Scope](https://www.solarsystemscope.com/textures/)
+- Solar system data is based on NASA's fact sheets and the [NASA Solar System Exploration](https://solarsystem.nasa.gov/) website
+- The Barnes-Hut algorithm implementation is inspired by the paper "A Hierarchical O(N log N) Force-Calculation Algorithm" by J. Barnes and P. Hut
+
+## FAQ
+
+### Does the simulator use actual astronomical data?
+Yes, the default solar system is based on real astronomical data for the Sun, planets, and major moons.
+
+### Can I create fictional solar systems?
+Yes, you can add, remove, and modify celestial bodies to create your own custom solar systems.
+
+### How accurate is the physics simulation?
+The simulator uses Newtonian gravitational physics with high accuracy. It doesn't currently model relativistic effects or quantum phenomena.
+
+### What are the system requirements?
+A modern computer with WebGL support should be sufficient. For best performance, a dedicated GPU is recommended.
+
+### Can I use this for educational purposes?
+Yes, the simulator is designed for educational use and is freely available under the MIT license.
 
 ## License
 
