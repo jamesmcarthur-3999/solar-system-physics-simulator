@@ -3,10 +3,21 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const THREE = require('three');
-const { OrbitControls } = require('three/examples/jsm/controls/OrbitControls.js');
-const { TextGeometry } = require('three/examples/jsm/geometries/TextGeometry.js');
-const { FontLoader } = require('three/examples/jsm/loaders/FontLoader.js');
+
+// Import modules that will be needed in the renderer
+let THREE;
+let OrbitControls;
+let TextGeometry;
+let FontLoader;
+
+try {
+  THREE = require('three');
+  OrbitControls = require('three/examples/jsm/controls/OrbitControls.js').OrbitControls;
+  TextGeometry = require('three/examples/jsm/geometries/TextGeometry.js').TextGeometry;
+  FontLoader = require('three/examples/jsm/loaders/FontLoader.js').FontLoader;
+} catch (error) {
+  console.error('Error loading modules in preload:', error);
+}
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -40,42 +51,36 @@ contextBridge.exposeInMainWorld('appPath', {
   rootPath: path.join(__dirname, '..').replace(/\\/g, '/')
 });
 
-// Expose a limited require function for specific modules
-contextBridge.exposeInMainWorld('nodeRequire', {
-  three: () => THREE,
-  threeOrbitControls: () => OrbitControls,
-  threeTextGeometry: () => TextGeometry,
-  threeFontLoader: () => FontLoader,
-  path: () => path,
-  fs: fs.promises
+// Expose file system functions
+contextBridge.exposeInMainWorld('fs', {
+  readFile: (filePath, options) => fs.promises.readFile(filePath, options),
+  writeFile: (filePath, data, options) => fs.promises.writeFile(filePath, data, options),
+  readdir: (dirPath, options) => fs.promises.readdir(dirPath, options),
+  exists: (path) => fs.existsSync(path)
+});
+
+// Expose path module functions
+contextBridge.exposeInMainWorld('path', {
+  join: (...args) => path.join(...args),
+  resolve: (...args) => path.resolve(...args),
+  dirname: (p) => path.dirname(p),
+  basename: (p, ext) => path.basename(p, ext),
+  extname: (p) => path.extname(p)
 });
 
 // Expose THREE directly for convenience in the renderer
-contextBridge.exposeInMainWorld('THREE', THREE);
-
-// Make a global require function to support module imports in the renderer
-contextBridge.exposeInMainWorld('require', (moduleName) => {
-  // Whitelist of allowed modules
-  const allowedModules = {
-    'three': THREE,
-    'three/examples/jsm/controls/OrbitControls.js': { OrbitControls },
-    'three/examples/jsm/geometries/TextGeometry.js': { TextGeometry },
-    'three/examples/jsm/loaders/FontLoader.js': { FontLoader },
-    'path': path,
-    'fs': fs.promises
-  };
+if (THREE) {
+  contextBridge.exposeInMainWorld('THREE', THREE);
   
-  // Only allow importing specific modules
-  if (allowedModules[moduleName]) {
-    return allowedModules[moduleName];
+  if (OrbitControls) {
+    contextBridge.exposeInMainWorld('OrbitControls', OrbitControls);
   }
   
-  // For local module imports, indicate they should be handled by the ESM system
-  if (moduleName.startsWith('./') || moduleName.startsWith('../')) {
-    console.log(`Local module '${moduleName}' should be imported using ES module syntax`);
-    return {}; // Return empty object to prevent errors
+  if (TextGeometry) {
+    contextBridge.exposeInMainWorld('TextGeometry', TextGeometry);
   }
   
-  // Disallow other imports
-  throw new Error(`Module not allowed: ${moduleName}`);
-});
+  if (FontLoader) {
+    contextBridge.exposeInMainWorld('FontLoader', FontLoader);
+  }
+}
