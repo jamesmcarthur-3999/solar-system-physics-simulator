@@ -32,12 +32,12 @@ class SceneManager {
       this.addStarsBackground();
       
       // Set up resize handler
-      this.onWindowResize = this.onWindowResize.bind(this);
-      window.addEventListener('resize', this.onWindowResize);
+      this.resizeHandler = this.onWindowResize.bind(this);
+      window.addEventListener('resize', this.resizeHandler);
       
       // Start animation loop
       this.animate = this.animate.bind(this);
-      this.animate();
+      this.animationFrameId = requestAnimationFrame(this.animate);
     } catch (error) {
       console.error('Error initializing scene:', error);
     }
@@ -52,8 +52,9 @@ class SceneManager {
       this.camera.lookAt(0, 0, 0);
     } catch (error) {
       console.error('Error setting up camera:', error);
-      // Create fallback camera
-      this.camera = new THREE.PerspectiveCamera();
+      // Create a fallback camera
+      this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
+      this.camera.position.set(0, 0, 100);
     }
   }
 
@@ -85,12 +86,14 @@ class SceneManager {
 
   setupControls() {
     try {
-      this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-      this.controls.enableDamping = true;
-      this.controls.dampingFactor = 0.05;
-      this.controls.rotateSpeed = 0.5;
-      this.controls.minDistance = 20;
-      this.controls.maxDistance = 5000;
+      if (this.renderer && this.camera) {
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.rotateSpeed = 0.5;
+        this.controls.minDistance = 20;
+        this.controls.maxDistance = 5000;
+      }
     } catch (error) {
       console.error('Error setting up controls:', error);
     }
@@ -126,12 +129,14 @@ class SceneManager {
       this.stars = new THREE.Points(geometry, material);
       this.scene.add(this.stars);
     } catch (error) {
-      console.error('Error creating star background:', error);
+      console.error('Error creating stars background:', error);
     }
   }
 
   onWindowResize() {
     try {
+      if (!this.container || !this.camera || !this.renderer) return;
+      
       const width = this.container.clientWidth;
       const height = this.container.clientHeight;
       
@@ -145,14 +150,14 @@ class SceneManager {
 
   animate() {
     try {
-      requestAnimationFrame(this.animate);
+      this.animationFrameId = requestAnimationFrame(this.animate);
       
       // Update controls
       if (this.controls) {
         this.controls.update();
       }
       
-      // Update celestial objects (will be implemented later)
+      // Update celestial objects (implemented by SolarSystemApp)
       this.updateObjects();
       
       // Render scene
@@ -161,49 +166,48 @@ class SceneManager {
       }
     } catch (error) {
       console.error('Error in animation loop:', error);
-      // Don't stop the animation loop
+      // Continue animation even if there's an error
     }
   }
 
   updateObjects() {
-    // This will be implemented later to update positions based on physics
+    // This is implemented by the SolarSystemApp class
   }
 
   // Public methods for object management
   addObject(object) {
     try {
-      if (object && object.mesh) {
+      if (object && object.id && object.mesh) {
         this.objects.set(object.id, object);
         this.scene.add(object.mesh);
       }
     } catch (error) {
-      console.error(`Error adding object ${object?.id}:`, error);
+      console.error(`Error adding object ${object?.name}:`, error);
     }
   }
 
   removeObject(id) {
     try {
       const object = this.objects.get(id);
-      if (object && object.mesh) {
-        this.scene.remove(object.mesh);
-        
-        // Dispose of resources
-        if (typeof object.dispose === 'function') {
-          object.dispose();
+      if (object) {
+        if (object.mesh) {
+          this.scene.remove(object.mesh);
         }
-        
+        if (object.orbitLine) {
+          this.scene.remove(object.orbitLine);
+        }
         this.objects.delete(id);
       }
     } catch (error) {
-      console.error(`Error removing object ${id}:`, error);
+      console.error(`Error removing object with id ${id}:`, error);
     }
   }
 
   resetView() {
     try {
-      this.camera.position.set(0, 100, 200);
-      this.camera.lookAt(0, 0, 0);
-      if (this.controls) {
+      if (this.camera && this.controls) {
+        this.camera.position.set(0, 100, 200);
+        this.camera.lookAt(0, 0, 0);
         this.controls.reset();
       }
     } catch (error) {
@@ -214,19 +218,43 @@ class SceneManager {
   // Clean up resources
   dispose() {
     try {
+      // Cancel animation frame
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
+      }
+      
       // Remove event listeners
-      window.removeEventListener('resize', this.onWindowResize);
+      window.removeEventListener('resize', this.resizeHandler);
       
       // Dispose of all objects
-      this.objects.forEach((object, id) => {
-        this.removeObject(id);
+      this.objects.forEach((object) => {
+        if (object && typeof object.dispose === 'function') {
+          object.dispose();
+        }
       });
       
-      // Dispose of stars
-      if (this.stars) {
-        if (this.stars.geometry) this.stars.geometry.dispose();
-        if (this.stars.material) this.stars.material.dispose();
-        this.scene.remove(this.stars);
+      // Clear objects map
+      this.objects.clear();
+      
+      // Dispose of THREE.js resources
+      if (this.scene) {
+        this.scene.traverse((object) => {
+          if (object.geometry) {
+            object.geometry.dispose();
+          }
+          
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach(material => {
+                if (material.map) material.map.dispose();
+                material.dispose();
+              });
+            } else {
+              if (object.material.map) object.material.map.dispose();
+              object.material.dispose();
+            }
+          }
+        });
       }
       
       // Dispose of renderer
@@ -237,13 +265,10 @@ class SceneManager {
         }
       }
       
-      // Clear references
-      this.objects.clear();
-      this.scene = null;
-      this.camera = null;
-      this.renderer = null;
-      this.controls = null;
-      this.stars = null;
+      // Clear controls
+      if (this.controls) {
+        this.controls.dispose();
+      }
     } catch (error) {
       console.error('Error disposing scene:', error);
     }
@@ -251,4 +276,6 @@ class SceneManager {
 }
 
 // Export using CommonJS syntax
-module.exports = { SceneManager };
+module.exports = {
+  SceneManager
+};
