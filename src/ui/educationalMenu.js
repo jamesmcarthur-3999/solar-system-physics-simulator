@@ -9,10 +9,12 @@ class EducationalMenu {
    * Creates a new EducationalMenu
    * @param {Object} tourManager - Reference to the TourManager
    * @param {Object} infoPanelManager - Reference to the InformationPanelManager
+   * @param {Object} solarSystemApp - Reference to the main application (optional)
    */
-  constructor(tourManager, infoPanelManager) {
+  constructor(tourManager, infoPanelManager, solarSystemApp = null) {
     this.tourManager = tourManager;
     this.infoPanelManager = infoPanelManager;
+    this.app = solarSystemApp;
     this.isMenuOpen = false;
     this.createUI();
   }
@@ -125,6 +127,19 @@ class EducationalMenu {
     });
     infoSection.appendChild(orbitalMechanicsInfoBtn);
     
+    const lagrangePointsInfoBtn = document.createElement('button');
+    lagrangePointsInfoBtn.className = 'educational-menu-item';
+    lagrangePointsInfoBtn.textContent = 'Lagrange Points';
+    lagrangePointsInfoBtn.addEventListener('click', () => {
+      this.closeMenu();
+      if (this.app && this.app.helpSystem) {
+        this.app.helpSystem.showTopic('lagrange-points');
+      } else {
+        this.infoPanelManager.showPanel('lagrange-points');
+      }
+    });
+    infoSection.appendChild(lagrangePointsInfoBtn);
+    
     const spaceExplorationInfoBtn = document.createElement('button');
     spaceExplorationInfoBtn.className = 'educational-menu-item';
     spaceExplorationInfoBtn.textContent = 'Space Exploration History';
@@ -148,6 +163,75 @@ class EducationalMenu {
     infoSection.appendChild(browseAllBtn);
     
     this.menu.appendChild(infoSection);
+    
+    // Visualization Tools Section
+    const vizSection = document.createElement('div');
+    vizSection.className = 'educational-menu-section';
+    
+    const vizTitle = document.createElement('div');
+    vizTitle.className = 'educational-menu-title';
+    vizTitle.textContent = 'Visualization Tools';
+    vizSection.appendChild(vizTitle);
+    
+    // Add visualization options
+    const showLagrangePointsBtn = document.createElement('button');
+    showLagrangePointsBtn.className = 'educational-menu-item';
+    showLagrangePointsBtn.textContent = 'Show Lagrange Points';
+    showLagrangePointsBtn.addEventListener('click', () => {
+      this.closeMenu();
+      if (this.app) {
+        // Focus on the Lagrange Points control
+        if (this.app.lagrangeSystemSelect) {
+          this.app.lagrangeSystemSelect.focus();
+          
+          // Show help tooltip if no system is selected
+          if (this.app.lagrangeSystemSelect.value === '' && this.app.helpSystem) {
+            this.app.helpSystem.showTooltip(
+              this.app.lagrangeSystemSelect.id || 'lagrangeSystemSelect',
+              'Select a system from this dropdown to visualize Lagrange points, then click "Show" to display them.',
+              'lagrange-points'
+            );
+          }
+        }
+      }
+    });
+    vizSection.appendChild(showLagrangePointsBtn);
+    
+    const showGravityFieldBtn = document.createElement('button');
+    showGravityFieldBtn.className = 'educational-menu-item';
+    showGravityFieldBtn.textContent = 'Gravity Field Visualization';
+    showGravityFieldBtn.addEventListener('click', () => {
+      this.closeMenu();
+      if (this.app && this.app.gravityVisualizer) {
+        // Toggle gravity visualization
+        this.app.gravityVisualizer.toggleVisibility();
+      }
+    });
+    vizSection.appendChild(showGravityFieldBtn);
+    
+    this.menu.appendChild(vizSection);
+    
+    // Help Section
+    const helpSection = document.createElement('div');
+    helpSection.className = 'educational-menu-section';
+    
+    const helpTitle = document.createElement('div');
+    helpTitle.className = 'educational-menu-title';
+    helpTitle.textContent = 'Help';
+    helpSection.appendChild(helpTitle);
+    
+    const helpCenterBtn = document.createElement('button');
+    helpCenterBtn.className = 'educational-menu-item';
+    helpCenterBtn.textContent = 'Open Help Center';
+    helpCenterBtn.addEventListener('click', () => {
+      this.closeMenu();
+      if (this.app && this.app.helpSystem) {
+        this.app.helpSystem.showPanel();
+      }
+    });
+    helpSection.appendChild(helpCenterBtn);
+    
+    this.menu.appendChild(helpSection);
   }
   
   /**
