@@ -5,10 +5,12 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "download-textures": "node scripts/download-textures.js",
+    "postinstall": "npm run download-textures",
+    "build": "npm run download-textures && electron-builder",
+    "build:win": "npm run download-textures && electron-builder --win",
+    "build:mac": "npm run download-textures && electron-builder --mac",
+    "build:linux": "npm run download-textures && electron-builder --linux"
   },
   "author": "",
   "license": "MIT",
