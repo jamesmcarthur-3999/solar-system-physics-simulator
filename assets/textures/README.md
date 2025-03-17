@@ -1,26 +1,41 @@
-# Texture Files
+# Textures for Solar System Physics Simulator
 
-This directory will contain texture files for the celestial objects in the simulation.
+This directory should contain the texture files for the celestial objects in the simulation.
 
-## Texture Sources
+## Required Textures
 
-For development, you can download planet textures from these sources:
+The following textures are expected by the application:
 
-1. [Solar System Scope](https://www.solarsystemscope.com/textures/) - Offers free planet textures with proper attribution
-2. [NASA Visible Earth](https://visibleearth.nasa.gov/) - NASA's collection of Earth imagery
-3. [JHT's Planetary Pixel Emporium](http://planetpixelemporium.com/planets.html) - Detailed planet textures
+- `sun.jpg` - Texture for the Sun
+- `mercury.jpg` - Texture for Mercury
+- `venus.jpg` - Texture for Venus
+- `earth.jpg` - Texture for Earth
+- `mars.jpg` - Texture for Mars
+- `jupiter.jpg` - Texture for Jupiter
+- `saturn.jpg` - Texture for Saturn
+- `uranus.jpg` - Texture for Uranus
+- `neptune.jpg` - Texture for Neptune
 
-## Expected Files
+## Adding Textures
 
-The application will look for these texture files:
-- sun.jpg
-- mercury.jpg
-- venus.jpg
-- earth.jpg
-- mars.jpg
-- jupiter.jpg
-- saturn.jpg
-- uranus.jpg
-- neptune.jpg
+You can download free textures from the following sources:
 
-For development purposes, the application will fall back to solid colors if texture files are not found.
+- [Solar System Scope](https://www.solarsystemscope.com/textures/) - Provides free planetary textures
+- [NASA Visible Earth](https://visibleearth.nasa.gov/) - Contains Earth and planetary textures
+- [James Webb Space Telescope](https://webbtelescope.org/) - Contains high-quality images that can be adapted
+
+After downloading textures, rename them according to the names listed above and place them in this directory.
+
+## Using Fallbacks
+
+If textures are not available, the application will automatically fall back to using solid colors for celestial objects. However, textures provide a much more realistic and visually appealing experience.
+
+## Legal Note
+
+Please ensure you have the right to use any textures you add. The textures mentioned above should be used in accordance with their respective licenses.
+
+## Performance Considerations
+
+- Use JPEG format for better performance (PNG files can be converted to JPEG)
+- Recommended texture resolution: 2048x1024 pixels (or 1024x512 for smaller planets)
+- Higher resolution textures will look better but may affect performance on lower-end systems
