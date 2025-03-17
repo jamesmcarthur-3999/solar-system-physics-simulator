@@ -105,6 +105,12 @@ button:active {
   background-color: #4a4a5a;
 }
 
+button:disabled {
+  background-color: #222;
+  color: #666;
+  cursor: not-allowed;
+}
+
 /* Dialog Styles */
 .modal-dialog {
   position: fixed;
@@ -384,4 +390,343 @@ button:active {
 .toggle-icon {
   width: 16px;
   height: 16px;
+}
+
+/* Tour Panel Styles */
+.tour-panel {
+  position: absolute;
+  right: 20px;
+  top: 80px;
+  width: 350px;
+  background-color: rgba(20, 20, 30, 0.9);
+  border: 1px solid #444;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  transition: all 0.3s ease;
+}
+
+.tour-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: rgba(50, 60, 100, 0.8);
+  border-bottom: 1px solid #444;
+}
+
+.tour-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+.tour-close-button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.tour-step-title {
+  padding: 10px 15px;
+  margin: 0;
+  font-size: 1.1rem;
+  color: #ddd;
+  border-bottom: 1px solid #333;
+}
+
+.tour-content {
+  padding: 15px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #ccc;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tour-content p {
+  margin-bottom: 12px;
+}
+
+.tour-content ul {
+  margin-bottom: 12px;
+  padding-left: 20px;
+}
+
+.tour-content li {
+  margin-bottom: 6px;
+}
+
+.tour-navigation {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 15px;
+  border-top: 1px solid #333;
+}
+
+.tour-nav-button {
+  min-width: 100px;
+}
+
+/* Information Panel Styles */
+.info-panels-container {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: 500;
+  pointer-events: none;
+}
+
+.info-panel {
+  position: absolute;
+  width: 500px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background-color: rgba(20, 20, 35, 0.95);
+  border: 1px solid #444;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.info-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: rgba(35, 45, 75, 0.9);
+  border-bottom: 1px solid #444;
+}
+
+.info-panel-header h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #fff;
+}
+
+.info-panel-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.info-panel-content {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+
+.info-panel-body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #ccc;
+}
+
+.info-panel-body h4 {
+  margin: 20px 0 10px;
+  color: #fff;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #444;
+  padding-bottom: 5px;
+}
+
+.info-panel-body h4:first-child {
+  margin-top: 0;
+}
+
+.info-panel-body p {
+  margin-bottom: 12px;
+}
+
+.info-panel-body ul {
+  margin-bottom: 15px;
+  padding-left: 20px;
+}
+
+.info-panel-body li {
+  margin-bottom: 6px;
+}
+
+.info-panel-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.formula {
+  font-family: "Courier New", monospace;
+  background-color: rgba(30, 30, 50, 0.7);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+/* Panel Selector Styles */
+.info-panel-selector {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  width: 250px;
+  background-color: rgba(25, 25, 40, 0.9);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 300;
+}
+
+.info-panel-selector h4 {
+  margin: 0 0 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #444;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.info-panel-categories {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.info-panel-category-section {
+  margin-bottom: 15px;
+}
+
+.info-panel-category-section h5 {
+  font-size: 1rem;
+  color: #aaa;
+  margin-bottom: 8px;
+  border-left: 3px solid #3366cc;
+  padding-left: 8px;
+}
+
+.info-panel-category-section ul {
+  list-style: none;
+  padding-left: 10px;
+}
+
+.info-panel-category-section li {
+  margin-bottom: 6px;
+}
+
+.info-panel-category-section a {
+  color: #ccc;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.info-panel-category-section a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* Educational Menu Button */
+.educational-menu-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: rgba(50, 80, 150, 0.8);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.educational-menu-button:hover {
+  background-color: rgba(60, 100, 180, 0.9);
+}
+
+.educational-menu {
+  position: fixed;
+  bottom: 85px;
+  right: 20px;
+  background-color: rgba(30, 30, 45, 0.95);
+  border-radius: 8px;
+  padding: 10px 0;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  min-width: 200px;
+  display: none;
+}
+
+.educational-menu.active {
+  display: block;
+  animation: menu-appear 0.2s ease-out;
+}
+
+@keyframes menu-appear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.educational-menu-item {
+  display: block;
+  padding: 8px 15px;
+  color: #ddd;
+  text-decoration: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+}
+
+.educational-menu-item:hover {
+  background-color: rgba(60, 80, 120, 0.6);
+  color: #fff;
+}
+
+.educational-menu-section {
+  border-top: 1px solid #444;
+  padding-top: 5px;
+  margin-top: 5px;
+}
+
+.educational-menu-section:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.educational-menu-title {
+  padding: 5px 15px;
+  color: #888;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
