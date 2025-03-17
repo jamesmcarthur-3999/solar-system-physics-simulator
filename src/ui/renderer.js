@@ -143,10 +143,20 @@ async function loadModules() {
         }
         const scriptText = await response.text();
         
-        // Create a script element and use it to load the module text
+        // Fix any require() calls by replacing them with window references
+        const fixedScriptText = scriptText
+          .replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, function(match, path) {
+            // Simple module name mapping
+            if (path === 'three') return 'window.THREE';
+            if (path.includes('OrbitControls')) return 'window.OrbitControls';
+            if (path.includes('TextGeometry')) return 'window.TextGeometry';
+            if (path.includes('FontLoader')) return 'window.FontLoader';
+            return match; // Return original if no mapping found
+          });
+          
+        // Create a script element and use it to load the modified code
         const script = document.createElement('script');
-        script.type = 'module';
-        script.textContent = scriptText;
+        script.textContent = fixedScriptText;
         document.head.appendChild(script);
         
         console.log(`Successfully loaded: ${url}`);
