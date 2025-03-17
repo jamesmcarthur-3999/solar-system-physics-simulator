@@ -1,109 +1,77 @@
-# Known Issues and Limitations
+# Solar System Physics Simulator - Known Issues
 
-This document outlines known issues, limitations, and technical considerations for the Solar System Physics Simulator project. This will help onboarding developers understand current challenges and areas that need attention.
+This document outlines the current known issues and limitations in the Solar System Physics Simulator project. Developers should review these issues before continuing development work.
 
 ## Technical Issues
 
-### 1. Module System Inconsistency
+1. **Module System Inconsistency** (Partially Fixed)
+   - The project mixes CommonJS and ES Modules, creating compatibility issues
+   - Some files use `import`/`export` while others use `require`/`module.exports`
+   - This inconsistency causes issues with Electron's main process
+   - **Status**: Being addressed by standardizing on CommonJS
 
-The project currently mixes CommonJS (require/exports) and ES Modules (import/export) syntax:
-- `main.js` and `preload.js` use CommonJS
-- Other files use ES Modules
-- This can lead to compatibility issues when running the application
+2. **Asset Path Resolution** (Partially Fixed)
+   - Texture loading fails due to incorrect path resolution
+   - Relative paths don't work properly in the Electron environment
+   - **Status**: Being addressed by adding proper path resolution for the Electron environment
 
-**Priority**: High
-**Solution**: Standardize on either CommonJS throughout or properly configure Electron to support ES Modules in all contexts.
+3. **Poor Error Handling**
+   - Limited error handling throughout the application
+   - No graceful fallbacks for missing assets or calculation errors
+   - No comprehensive error logging system
+   - **Status**: Needs to be addressed
 
-### 2. Asset Path Resolution
+4. **Memory Management Issues**
+   - Three.js resources aren't properly disposed of when no longer needed
+   - Potential memory leaks from event listeners not being removed
+   - **Status**: Being addressed with proper cleanup routines
 
-Texture paths in `solarSystem.js` use relative paths that won't resolve correctly in the Electron runtime environment:
-- Paths like `'../assets/textures/sun.jpg'` won't work reliably
-- Electron requires absolute paths or specially handled relative paths
+## Physics Simulation Issues
 
-**Priority**: High
-**Solution**: Use `path.join(__dirname, ...)` or a dedicated asset loading utility.
+1. **Gravity Calculation Performance**
+   - Current N-body simulation performs O(n²) calculations, becoming slow with many objects
+   - No optimization for distant objects with minimal gravitational influence
+   - **Status**: Needs to be addressed, possibly using the Barnes-Hut algorithm
 
-### 3. Physics Calculation Accuracy
+2. **Numerical Stability**
+   - Physics can become unstable at high time scales
+   - Orbits can deteriorate over long simulations due to cumulative errors
+   - **Status**: Needs to be addressed with more stable numerical integration methods
 
-The physics simulation may experience issues with numerical precision due to the vast scales involved in astronomical calculations:
-- Distances, masses, and times in space vary by many orders of magnitude
-- JavaScript's floating-point precision may be insufficient for some calculations
-- Current time scaling approach may cause orbit instability
+3. **Collision Detection Limitations**
+   - Collision detection is very basic and doesn't account for object rotation
+   - Collision resolution is overly simplistic
+   - **Status**: Needs to be addressed
 
-**Priority**: Medium
-**Solution**: Implement normalization functions and consider using alternative computation approaches for critical calculations.
+## UI/UX Issues
 
-### 4. Missing Error Handling
+1. **Control Limitations**
+   - Camera controls don't provide options to follow specific objects
+   - Limited information display about selected objects
+   - **Status**: Needs to be addressed
 
-Error handling throughout the application is minimal, particularly in areas like:
-- Texture loading
-- Physics calculations
-- Asset initialization
+2. **Object Creation Interface**
+   - No interface for creating new celestial objects
+   - No validation for physically realistic parameters
+   - **Status**: Needs to be implemented
 
-**Priority**: Medium
-**Solution**: Add comprehensive try/catch blocks and error states in the UI.
+3. **Performance Feedback**
+   - No indicators for simulation performance issues
+   - No way to identify performance bottlenecks
+   - **Status**: Needs to be addressed
 
-### 5. Memory Management
+## Educational Feature Gaps
 
-The application may accumulate memory over time due to:
-- Unbounded growth of orbit history points
-- Event listeners not being properly cleaned up
-- Three.js resources not being disposed
+1. **Limited Educational Content**
+   - No information panels explaining astronomical concepts
+   - No habitability indicators or scientific explanations
+   - **Status**: Needs to be implemented
 
-**Priority**: Medium
-**Solution**: Implement proper cleanup methods and resource disposal.
-
-## UX Limitations
-
-### 1. Limited Object Interaction
-
-Currently, the application only supports selecting objects, not modifying them:
-- No UI for adjusting object properties
-- No way to add custom objects with custom parameters
-
-**Priority**: High
-**Solution**: Implement the planned object creation and modification dialogs.
-
-### 2. Visualization Scaling
-
-Visual representation of celestial bodies is not to scale:
-- Planets appear much larger relative to distances than in reality
-- This is intentional for usability but should be made clear to users
-
-**Priority**: Low
-**Solution**: Add UI controls to toggle "realistic" vs. "educational" scaling.
-
-### 3. Missing Educational Content
-
-The educational aspects of the simulation are not yet implemented:
-- No information panels about celestial objects
-- No explanations of physical phenomena
-- No habitability indicators
-
-**Priority**: Medium
-**Solution**: Implement the information panel system outlined in the project guide.
-
-## Development Considerations
-
-### 1. Cross-Platform Compatibility
-
-The application needs testing on multiple platforms:
-- Windows, macOS, and Linux have different path handling
-- GPU performance varies across platforms
-- Electron behavior may differ slightly between operating systems
-
-**Priority**: Medium
-**Solution**: Establish automated testing and ensure testing happens across multiple platforms.
-
-### 2. Performance Optimization
-
-The application may struggle with performance when many objects are present:
-- N-body calculations scale poorly (O(n²) complexity)
-- Rendering many high-poly objects can affect framerate
-
-**Priority**: Medium
-**Solution**: Implement physics optimization strategies (Barnes-Hut algorithm, etc.) and level-of-detail rendering.
+2. **Visualization Limitations**
+   - No visualization of gravity wells or spacetime distortion
+   - Limited visual cues for physical phenomena
+   - **Status**: Needs to be implemented
 
 ---
 
-This document should be updated as issues are resolved and new ones are discovered.
+This document will be updated as issues are resolved and new issues are identified. Developers should prioritize addressing these issues according to the [Next Steps](../NEXT_STEPS.md) document.
