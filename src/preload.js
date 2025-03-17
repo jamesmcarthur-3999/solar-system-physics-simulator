@@ -1,6 +1,7 @@
 // All Node.js APIs are available in the preload process
 // It has the same sandbox as a Chrome extension
 const { contextBridge, ipcRenderer } = require('electron');
+const path = require('path');
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -24,4 +25,12 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.on(channel, (event, ...args) => callback(...args));
     }
   }
+});
+
+// Expose application paths to the renderer process
+contextBridge.exposeInMainWorld('appPath', {
+  // Provide asset path to allow proper texture loading
+  assetsPath: path.join(__dirname, '../assets').replace(/\\/g, '/'),
+  // Also provide the application root path for more flexibility
+  rootPath: path.join(__dirname, '..').replace(/\\/g, '/'),
 });
