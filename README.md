@@ -8,6 +8,15 @@ This project is in active development. See [Project Status](docs/PROJECT_STATUS.
 
 ⚠️ **Note for Developers**: Please review the [Known Issues](docs/KNOWN_ISSUES.md) document before continuing development. Also see the [Next Steps](NEXT_STEPS_UPDATED.md) for detailed information on upcoming features.
 
+### Recent Updates (March 17, 2025)
+
+- ✅ Fixed ES Module loading issues in preload.js using dynamic imports
+- ✅ Added missing constants.js file for physics calculations
+- ✅ Updated Content Security Policy to allow dynamic module loading
+- ✅ Improved error handling and documentation
+
+See [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md) for technical details on these fixes.
+
 ## Features
 
 - **Realistic Physics Engine**: N-body simulation calculating gravitational forces between all objects using the optimized Barnes-Hut algorithm
@@ -82,6 +91,7 @@ Before running the application, be aware of these key technical issues:
 
 1. **Textures**: The application will automatically download required textures on first run
 2. **Feature Integration**: Several features have been implemented and are now available through the UI
+3. **Module System**: The application uses a mixed module system (CommonJS for main process, ES modules for renderer)
 
 See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed development plans.
 
@@ -130,6 +140,7 @@ For optimal performance:
 - [Data Models](docs/DATA_MODELS.md): Core data structures
 - [Known Issues](docs/KNOWN_ISSUES.md): Current limitations and bugs
 - [Next Steps](NEXT_STEPS_UPDATED.md): Priority development tasks
+- [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md): Technical details of recent implementations
 
 ## Development Workflow
 
@@ -250,6 +261,12 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed implementation guidance.
    - Implemented keyboard shortcuts for common actions
    - Enhanced camera controls and navigation
 
+4. **Technical Improvements**:
+   - Fixed module system inconsistencies with dynamic imports
+   - Added proper error handling throughout the application
+   - Implemented CSP adjustments for module loading
+   - Created missing physics constants file
+
 ## Acknowledgments
 
 - Planet and star textures are sourced from [Solar System Scope](https://www.solarsystemscope.com/textures/)
@@ -272,6 +289,9 @@ A modern computer with WebGL support should be sufficient. For best performance,
 
 ### Can I use this for educational purposes?
 Yes, the simulator is designed for educational use and is freely available under the MIT license.
+
+### How do I report bugs or request features?
+Please submit issues on the GitHub repository with detailed information about bugs or feature requests.
 
 ## License
 
