@@ -4,7 +4,7 @@ An interactive educational desktop application that simulates our solar system w
 
 ## Project Status
 
-This project is in active development. See [Project Status](docs/PROJECT_STATUS.md) for current progress. The project has advanced significantly with many core features completed and educational features in progress.
+This project is in active development. See [Project Status](docs/PROJECT_STATUS.md) for current progress. The project has advanced significantly with many core features completed and educational features implemented.
 
 ⚠️ **Note for Developers**: Please review the [Known Issues](docs/KNOWN_ISSUES.md) document before continuing development. Also see the [Next Steps](NEXT_STEPS_UPDATED.md) for detailed information on upcoming features.
 
@@ -12,10 +12,21 @@ This project is in active development. See [Project Status](docs/PROJECT_STATUS.
 
 - **Realistic Physics Engine**: N-body simulation calculating gravitational forces between all objects using the optimized Barnes-Hut algorithm
 - **Interactive Object Management**: Add, modify, and remove celestial bodies with custom parameters
-- **Educational Features**: Real-time data display, astronomical event detection, and orbit prediction
-- **3D Visualization**: Interactive rendering with level-of-detail rendering for optimal performance
+- **Educational Features**: Guided tours, information panels, and real-time data display
+- **3D Visualization**: Interactive rendering with high-quality textures and realistic effects
 - **Time Controls**: Pause, accelerate, slow down, or reverse simulation time
 - **Save/Load System**: Save and load custom solar system configurations
+- **Multiple Configurations**: Switch between different solar system configurations (full system, inner planets, etc.)
+
+## Educational Features
+
+The simulator includes several educational components:
+
+- **Guided Tours**: Step-by-step tours explaining solar system concepts
+- **Information Panels**: Detailed information about celestial bodies and astronomical concepts
+- **Educational Menu**: Easy access to all educational features
+- **Scientific Data**: Comprehensive information about each celestial body
+- **Visual Effects**: Realistic atmospheric effects, ring systems, and lighting
 
 ## Technical Architecture
 
@@ -49,12 +60,34 @@ npm start
 
 ### Immediate Technical Notes
 
-Before running the application, be aware of these key technical issues that need addressing:
+Before running the application, be aware of these key technical issues:
 
-1. **Asset Integration**: The project currently lacks proper textures - see [Next Steps](NEXT_STEPS_UPDATED.md) for details
-2. **Feature Integration**: Several features have been implemented in separate branches and need final integration
+1. **Textures**: The application will automatically download required textures on first run
+2. **Feature Integration**: Several features have been implemented and are now available through the UI
 
-See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed fixes and development plans.
+See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed development plans.
+
+## Using the Simulator
+
+### Basic Controls
+
+- **Play/Pause**: Start or stop the simulation (Space bar)
+- **Time Scale**: Adjust simulation speed using buttons or up/down arrow keys
+- **Camera**: Left-click and drag to rotate, right-click and drag to pan, scroll to zoom
+- **Reset View**: Reset camera to default position (R key)
+- **System Selection**: Choose different solar system configurations from the dropdown
+
+### Educational Features
+
+- **Educational Menu**: Click the ? button in the bottom-right corner
+- **Guided Tours**: Select from available tours in the educational menu
+- **Information Panels**: Access detailed information about celestial bodies and concepts
+
+### Adding Objects
+
+- Click "Add Object" to create new celestial bodies
+- Configure parameters such as mass, radius, position, and velocity
+- Advanced options allow setting custom textures, atmospheres, and other properties
 
 ## Project Documentation
 
@@ -82,7 +115,8 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed fixes and development plans
 │   ├── renderer/          # 3D visualization components
 │   ├── physics/           # Physics simulation engine
 │   ├── ui/                # User interface components
-│   └── data/              # Data models and storage logic
+│   ├── data/              # Data models and storage logic
+│   └── utils/             # Utility functions
 ├── assets/                # Static resources
 │   ├── textures/          # Planet and star textures
 │   └── icons/             # Application icons
@@ -94,8 +128,8 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed fixes and development plans
 
 Current technical priorities for the next development phase:
 
-1. **Educational Features**: Implement guided tours and more educational content
-2. **Visual Enhancements**: Add high-quality textures and more realistic effects
+1. **Educational Features**: Add more guided tours and educational content
+2. **Visual Enhancements**: Implement more realistic effects for educational purposes
 3. **User Experience**: Create comprehensive help system and tutorials
 4. **Deployment Preparation**: Configure cross-platform builds and packaging
 
@@ -103,21 +137,20 @@ See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed implementation guidance.
 
 ## Recent Achievements
 
-1. **Performance Optimization**:
-   - Implemented Barnes-Hut algorithm reducing physics calculations from O(n²) to O(n log n)
-   - Added level-of-detail rendering for distant objects
-   - Optimized orbit line generation based on distance
-   - Added performance monitoring UI with toggleable optimizations
+1. **Educational Feature Implementation**:
+   - Added guided tour system for explaining solar system concepts
+   - Implemented educational information panels with detailed content
+   - Created educational menu for easy access to educational features
 
-2. **Educational Features**:
-   - Added astronomical event detection for conjunctions, oppositions, eclipses, and close approaches
-   - Implemented events panel with filtering and focus capabilities
-   - Added orbit prediction visualization for educational purposes
+2. **Visual Enhancement**:
+   - Added high-quality texture support with automatic downloading
+   - Implemented realistic lighting effects for stars
+   - Added atmospheric effects for planets
 
-3. **User Experience**:
-   - Implemented save/load functionality for custom solar system configurations
-   - Added adaptive physics resolution for better stability at high time scales
-   - Improved camera controls with focus functionality
+3. **User Experience Improvements**:
+   - Added system selector for switching between configurations
+   - Implemented keyboard shortcuts for common actions
+   - Enhanced camera controls and navigation
 
 ## License
 
