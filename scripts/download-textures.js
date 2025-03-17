@@ -183,25 +183,20 @@ function downloadFile(url, destination, required = true) {
   });
 }
 
-// Create a fallback texture for missing optional textures
-function createFallbackTexture(destination, color = '#000000') {
+// Copy a fallback texture (uses earth.jpg for missing earth textures)
+function copyFallbackTexture(destination, sourceName = 'earth.jpg') {
   return new Promise((resolve, reject) => {
     try {
-      // Simple 2x2 pixel PNG - just a placeholder
-      console.log(`Creating fallback texture at ${destination}`);
+      const sourcePath = path.join(textureDir, sourceName);
       
-      // Write a simple colored 16x16 texture
-      const { createCanvas } = require('canvas');
-      const canvas = createCanvas(16, 16);
-      const ctx = canvas.getContext('2d');
-      
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 16, 16);
-      
-      const buffer = canvas.toBuffer('image/png');
-      fs.writeFileSync(destination, buffer);
-      
-      console.log(`Created fallback texture at ${destination}`);
+      // Check if source exists first
+      if (fs.existsSync(sourcePath)) {
+        console.log(`Using fallback: copying ${sourcePath} to ${destination}`);
+        fs.copyFileSync(sourcePath, destination);
+        console.log(`Created fallback texture at ${destination}`);
+      } else {
+        console.warn(`Warning: Source texture for fallback not found: ${sourcePath}`);
+      }
       resolve();
     } catch (err) {
       console.warn(`Warning: Could not create fallback texture: ${err.message}`);
@@ -215,62 +210,77 @@ function createFallbackTexture(destination, color = '#000000') {
 async function downloadAllTextures() {
   console.log('Starting texture downloads...');
   
-  // Create an array of promises for all downloads
-  const downloads = TEXTURE_SOURCES.textures.map((texture) => {
+  // Required textures first to ensure we have fallbacks available
+  const requiredTextures = TEXTURE_SOURCES.textures.filter(t => t.required);
+  const optionalTextures = TEXTURE_SOURCES.textures.filter(t => !t.required);
+  
+  // Results tracking
+  let succeeded = [];
+  let failed = [];
+  
+  // Process required textures first
+  for (const texture of requiredTextures) {
     const url = `${TEXTURE_SOURCES.baseUrl}${texture.url}`;
     const destination = path.join(textureDir, texture.name);
     
     // Skip if file already exists
     if (fs.existsSync(destination)) {
       console.log(`Skipping ${texture.name} (already exists)`);
-      return Promise.resolve();
+      succeeded.push(texture.name);
+      continue;
     }
     
-    return downloadFile(url, destination, texture.required)
-      .catch(err => {
-        if (!texture.required) {
-          console.warn(`Could not download optional texture ${texture.name}, using fallback`);
-          return createFallbackTexture(destination);
-        }
-        throw err;
-      });
-  });
-  
-  // Keep track of successful and failed downloads
-  const results = { succeeded: [], failed: [] };
-  
-  // Process each download
-  for (let i = 0; i < TEXTURE_SOURCES.textures.length; i++) {
-    const texture = TEXTURE_SOURCES.textures[i];
     try {
-      await downloads[i];
-      results.succeeded.push(texture.name);
+      await downloadFile(url, destination, true);
+      succeeded.push(texture.name);
     } catch (error) {
-      if (texture.required) {
-        results.failed.push({ name: texture.name, error: error.message });
+      failed.push({ name: texture.name, error: error.message });
+    }
+  }
+  
+  // If we failed to download required textures, exit
+  if (failed.length > 0) {
+    console.error(`\nFailed to download ${failed.length} required textures:`);
+    failed.forEach(failure => {
+      console.error(`  - ${failure.name}: ${failure.error}`);
+    });
+    console.error('Required textures could not be downloaded. Application may not display correctly.');
+    process.exit(1);
+  }
+  
+  // Now process optional textures
+  for (const texture of optionalTextures) {
+    const url = `${TEXTURE_SOURCES.baseUrl}${texture.url}`;
+    const destination = path.join(textureDir, texture.name);
+    
+    // Skip if file already exists
+    if (fs.existsSync(destination)) {
+      console.log(`Skipping ${texture.name} (already exists)`);
+      succeeded.push(texture.name);
+      continue;
+    }
+    
+    try {
+      await downloadFile(url, destination, false);
+      succeeded.push(texture.name);
+    } catch (error) {
+      // This shouldn't happen for optional textures, but just in case
+      console.warn(`Warning: Problem with optional texture ${texture.name}: ${error.message}`);
+      
+      // For earth-related textures, use earth.jpg as fallback if available
+      if (texture.name.startsWith('earth_')) {
+        await copyFallbackTexture(destination, 'earth.jpg');
       }
     }
   }
   
   // Log results
   console.log(`\nTexture download summary:`);
-  console.log(`- Successfully downloaded or skipped ${results.succeeded.length} textures`);
+  console.log(`- Successfully downloaded or skipped ${succeeded.length} textures`);
   
-  if (results.failed.length > 0) {
-    console.error(`- Failed to download ${results.failed.length} required textures:`);
-    results.failed.forEach(failure => {
-      console.error(`  - ${failure.name}: ${failure.error}`);
-    });
-    console.error('Required textures could not be downloaded. Application may not display correctly.');
-    
-    // Exit with error code if required textures failed
-    process.exit(1);
-  } else {
-    console.log('All required textures downloaded successfully!');
-    
-    // Create an attribution file
-    const attributionPath = path.join(textureDir, 'ATTRIBUTION.md');
-    const attributionContent = `# Texture Attributions
+  // Create an attribution file
+  const attributionPath = path.join(textureDir, 'ATTRIBUTION.md');
+  const attributionContent = `# Texture Attributions
 
 The textures in this directory are sourced from Solar System Scope:
 https://www.solarsystemscope.com/textures/
@@ -285,10 +295,10 @@ ${TEXTURE_SOURCES.textures.map(texture => `- ${texture.name}: ${texture.descript
 
 Downloaded on: ${new Date().toISOString().split('T')[0]}
 `;
-    
-    fs.writeFileSync(attributionPath, attributionContent);
-    console.log(`Created attribution file: ${attributionPath}`);
-  }
+  
+  fs.writeFileSync(attributionPath, attributionContent);
+  console.log(`Created attribution file: ${attributionPath}`);
+  console.log('All required textures downloaded successfully!');
 }
 
 // Execute the download function
