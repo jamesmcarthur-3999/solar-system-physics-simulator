@@ -1,18 +1,22 @@
 // Solar System Simulator - Main Renderer
-const THREE = require('three');
-const { GravitySimulator } = require('../physics/gravitySimulator');
-const { SceneManager } = require('../renderer/scene');
-const { CameraControls } = require('../renderer/cameraControls');
-const { GravityVisualizer } = require('../renderer/gravityVisualizer');
-const LagrangePointVisualizer = require('../renderer/LagrangePointVisualizer');
-const { Dialogs } = require('./dialogs');
-const { InfoPanel } = require('./infoPanel');
-const { ObjectHandlers } = require('./objectHandlers');
-const { SolarSystem, getDefaultSystem } = require('../data/solarSystem');
-const { EducationalFeatures } = require('./educationalFeatures');
-const { SystemSelector } = require('./systemSelector');
-const HelpSystem = require('./HelpSystem');
-const { downloadAllTextures } = require('../utils/downloadTextures');
+// Use the exposed nodeRequire instead of direct require
+const THREE = window.nodeRequire.three();
+const { OrbitControls } = window.nodeRequire.threeOrbitControls();
+
+// Import local modules using path-based imports (will be handled by Electron)
+import { GravitySimulator } from '../physics/gravitySimulator.js';
+import { SceneManager } from '../renderer/scene.js';
+import { CameraControls } from '../renderer/cameraControls.js';
+import { GravityVisualizer } from '../renderer/gravityVisualizer.js';
+import LagrangePointVisualizer from '../renderer/LagrangePointVisualizer.js';
+import { Dialogs } from './dialogs.js';
+import { InfoPanel } from './infoPanel.js';
+import { ObjectHandlers } from './objectHandlers.js';
+import { SolarSystem, getDefaultSystem } from '../data/solarSystem.js';
+import { EducationalFeatures } from './educationalFeatures.js';
+import { SystemSelector } from './systemSelector.js';
+import HelpSystem from './HelpSystem.js';
+import { downloadAllTextures } from '../utils/downloadTextures.js';
 
 /**
  * Main application class for Solar System Simulator
