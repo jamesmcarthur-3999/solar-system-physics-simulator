@@ -4,23 +4,24 @@ An interactive educational desktop application that simulates our solar system w
 
 ## Project Status
 
-This project is in active development. See [Project Status](docs/PROJECT_STATUS.md) for current progress.
+This project is in active development. See [Project Status](docs/PROJECT_STATUS.md) for current progress. The project has advanced significantly with many core features completed and educational features in progress.
 
-⚠️ **Note for Developers**: Please review the [Known Issues](docs/KNOWN_ISSUES.md) document before continuing development.
+⚠️ **Note for Developers**: Please review the [Known Issues](docs/KNOWN_ISSUES.md) document before continuing development. Also see the [Next Steps](NEXT_STEPS_UPDATED.md) for detailed information on upcoming features.
 
 ## Features
 
-- **Realistic Physics Engine**: N-body simulation calculating gravitational forces between all objects
+- **Realistic Physics Engine**: N-body simulation calculating gravitational forces between all objects using the optimized Barnes-Hut algorithm
 - **Interactive Object Management**: Add, modify, and remove celestial bodies with custom parameters
-- **Educational Features**: Real-time data display, habitability indicators, and scientific explanations
-- **3D Visualization**: Interactive rendering with realistic textures and effects
+- **Educational Features**: Real-time data display, astronomical event detection, and orbit prediction
+- **3D Visualization**: Interactive rendering with level-of-detail rendering for optimal performance
 - **Time Controls**: Pause, accelerate, slow down, or reverse simulation time
+- **Save/Load System**: Save and load custom solar system configurations
 
 ## Technical Architecture
 
 - **Electron**: Cross-platform desktop application framework
 - **Three.js**: 3D rendering library for WebGL
-- **Custom Physics**: N-body gravity simulation with Newtonian physics
+- **Custom Physics**: Optimized N-body gravity simulation with Barnes-Hut algorithm
 
 ## Getting Started
 
@@ -50,11 +51,10 @@ npm start
 
 Before running the application, be aware of these key technical issues that need addressing:
 
-1. **Module System**: Project mixes CommonJS and ES Modules, which requires standardization
-2. **Asset Paths**: Texture loading will fail with current path resolution approach
-3. **Error Handling**: Limited error handling throughout the application
+1. **Asset Integration**: The project currently lacks proper textures - see [Next Steps](NEXT_STEPS_UPDATED.md) for details
+2. **Feature Integration**: Several features have been implemented in separate branches and need final integration
 
-See [Next Steps](NEXT_STEPS.md) for detailed fixes and development plans.
+See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed fixes and development plans.
 
 ## Project Documentation
 
@@ -62,12 +62,12 @@ See [Next Steps](NEXT_STEPS.md) for detailed fixes and development plans.
 - [Project Status](docs/PROJECT_STATUS.md): Current development status
 - [Data Models](docs/DATA_MODELS.md): Core data structures
 - [Known Issues](docs/KNOWN_ISSUES.md): Current limitations and bugs
-- [Next Steps](NEXT_STEPS.md): Priority development tasks
+- [Next Steps](NEXT_STEPS_UPDATED.md): Priority development tasks
 
 ## Development Workflow
 
 1. Review the [Known Issues](docs/KNOWN_ISSUES.md) document
-2. Choose a task from the [Next Steps](NEXT_STEPS.md) document
+2. Choose a task from the [Next Steps](NEXT_STEPS_UPDATED.md) document
 3. Create a feature branch for your work
 4. Submit a pull request with your changes
 5. Update documentation as needed
@@ -94,13 +94,30 @@ See [Next Steps](NEXT_STEPS.md) for detailed fixes and development plans.
 
 Current technical priorities for the next development phase:
 
-1. **Fix Module System**: Standardize on ES Modules or CommonJS
-2. **Asset Loading**: Implement proper path resolution for texture loading
-3. **Physics Improvements**: Enhance accuracy and performance of gravity calculations
-4. **Memory Management**: Add proper cleanup for Three.js resources
-5. **Error Handling**: Implement robust error handling throughout
+1. **Educational Features**: Implement guided tours and more educational content
+2. **Visual Enhancements**: Add high-quality textures and more realistic effects
+3. **User Experience**: Create comprehensive help system and tutorials
+4. **Deployment Preparation**: Configure cross-platform builds and packaging
 
-See [Next Steps](NEXT_STEPS.md) for detailed implementation guidance.
+See [Next Steps](NEXT_STEPS_UPDATED.md) for detailed implementation guidance.
+
+## Recent Achievements
+
+1. **Performance Optimization**:
+   - Implemented Barnes-Hut algorithm reducing physics calculations from O(n²) to O(n log n)
+   - Added level-of-detail rendering for distant objects
+   - Optimized orbit line generation based on distance
+   - Added performance monitoring UI with toggleable optimizations
+
+2. **Educational Features**:
+   - Added astronomical event detection for conjunctions, oppositions, eclipses, and close approaches
+   - Implemented events panel with filtering and focus capabilities
+   - Added orbit prediction visualization for educational purposes
+
+3. **User Experience**:
+   - Implemented save/load functionality for custom solar system configurations
+   - Added adaptive physics resolution for better stability at high time scales
+   - Improved camera controls with focus functionality
 
 ## License
 
