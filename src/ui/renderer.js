@@ -104,6 +104,22 @@ class HelpSystem {
 
 async function downloadAllTextures() {}
 
+// Make placeholder classes available globally
+window.SceneManager = SceneManager;
+window.CameraControls = CameraControls;
+window.GravitySimulator = GravitySimulator;
+window.GravityVisualizer = GravityVisualizer;
+window.LagrangePointVisualizer = LagrangePointVisualizer;
+window.Dialogs = Dialogs;
+window.InfoPanel = InfoPanel;
+window.ObjectHandlers = ObjectHandlers;
+window.SolarSystem = SolarSystem;
+window.getDefaultSystem = getDefaultSystem;
+window.EducationalFeatures = EducationalFeatures;
+window.SystemSelector = SystemSelector;
+window.HelpSystem = HelpSystem;
+window.downloadAllTextures = downloadAllTextures;
+
 // Initialize modules on window load
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -203,9 +219,30 @@ async function loadModules() {
         const script = document.createElement('script');
         script.type = 'text/javascript';
         
-        // Convert any require() calls to window references
-        const modifiedScript = scriptText
-          .replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (match, path) => {
+        // Wrap the script in a function that populates the window object
+        const modifiedScript = `
+          (function() {
+            ${scriptText}
+            
+            // For classes defined in this module, make sure they're assigned to window
+            if (typeof SceneManager !== 'undefined') window.SceneManager = SceneManager;
+            if (typeof CameraControls !== 'undefined') window.CameraControls = CameraControls;
+            if (typeof GravitySimulator !== 'undefined') window.GravitySimulator = GravitySimulator;
+            if (typeof GravityVisualizer !== 'undefined') window.GravityVisualizer = GravityVisualizer;
+            if (typeof LagrangePointVisualizer !== 'undefined') window.LagrangePointVisualizer = LagrangePointVisualizer;
+            if (typeof Dialogs !== 'undefined') window.Dialogs = Dialogs;
+            if (typeof InfoPanel !== 'undefined') window.InfoPanel = InfoPanel;
+            if (typeof ObjectHandlers !== 'undefined') window.ObjectHandlers = ObjectHandlers;
+            if (typeof SolarSystem !== 'undefined') window.SolarSystem = SolarSystem;
+            if (typeof getDefaultSystem !== 'undefined') window.getDefaultSystem = getDefaultSystem;
+            if (typeof EducationalFeatures !== 'undefined') window.EducationalFeatures = EducationalFeatures;
+            if (typeof SystemSelector !== 'undefined') window.SystemSelector = SystemSelector;
+            if (typeof HelpSystem !== 'undefined') window.HelpSystem = HelpSystem;
+            if (typeof downloadAllTextures !== 'undefined') window.downloadAllTextures = downloadAllTextures;
+          })();
+        `;
+
+        script.textContent = modifiedScript.replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (match, path) => {
             if (path === 'three') return 'window.THREE';
             if (path.includes('three')) return 'window.THREE';
             if (path.includes('OrbitControls')) return 'window.OrbitControls';
@@ -218,7 +255,6 @@ async function loadModules() {
             return `window.${moduleName}`;
           });
         
-        script.text = modifiedScript;
         document.head.appendChild(script);
         
         console.log(`Successfully loaded: ${url}`);
@@ -321,8 +357,17 @@ class SolarSystemApp {
    */
   initManagers() {
     try {
+      // Log what's available to help debug
+      console.log("Available modules:", {
+        SceneManager: typeof window.SceneManager,
+        CameraControls: typeof window.CameraControls,
+        GravitySimulator: typeof window.GravitySimulator,
+        GravityVisualizer: typeof window.GravityVisualizer,
+        LagrangePointVisualizer: typeof window.LagrangePointVisualizer
+      });
+      
       // Check that required classes exist
-      if (!window.SceneManager) {
+      if (typeof window.SceneManager !== 'function') {
         throw new Error('SceneManager class not found');
       }
       
@@ -332,7 +377,7 @@ class SolarSystemApp {
       this.renderer = this.sceneManager.renderer;
       
       // Create camera controls
-      if (!window.CameraControls) {
+      if (typeof window.CameraControls !== 'function') {
         throw new Error('CameraControls class not found');
       }
       this.cameraControls = new window.CameraControls(
@@ -341,55 +386,55 @@ class SolarSystemApp {
       );
       
       // Create physics simulator
-      if (!window.GravitySimulator) {
+      if (typeof window.GravitySimulator !== 'function') {
         throw new Error('GravitySimulator class not found');
       }
       this.physics = new window.GravitySimulator();
       
       // Create gravity visualizer
-      if (!window.GravityVisualizer) {
+      if (typeof window.GravityVisualizer !== 'function') {
         throw new Error('GravityVisualizer class not found');
       }
       this.gravityVisualizer = new window.GravityVisualizer(this.scene);
       
       // Create Lagrange point visualizer
-      if (!window.LagrangePointVisualizer) {
+      if (typeof window.LagrangePointVisualizer !== 'function') {
         throw new Error('LagrangePointVisualizer class not found');
       }
       this.lagrangePointVisualizer = new window.LagrangePointVisualizer(this.scene);
       
       // Create dialogs manager
-      if (!window.Dialogs) {
+      if (typeof window.Dialogs !== 'function') {
         throw new Error('Dialogs class not found');
       }
       this.dialogs = new window.Dialogs();
       
       // Create info panel
-      if (!window.InfoPanel) {
+      if (typeof window.InfoPanel !== 'function') {
         throw new Error('InfoPanel class not found');
       }
       this.infoPanelManager = new window.InfoPanel(this.objectProperties);
       
       // Create object handlers
-      if (!window.ObjectHandlers) {
+      if (typeof window.ObjectHandlers !== 'function') {
         throw new Error('ObjectHandlers class not found');
       }
       this.objectHandlers = new window.ObjectHandlers(this);
       
       // Create system selector
-      if (!window.SystemSelector) {
+      if (typeof window.SystemSelector !== 'function') {
         throw new Error('SystemSelector class not found');
       }
       this.systemSelector = new window.SystemSelector(this);
       
       // Create educational features
-      if (!window.EducationalFeatures) {
+      if (typeof window.EducationalFeatures !== 'function') {
         throw new Error('EducationalFeatures class not found');
       }
       this.educationalFeatures = new window.EducationalFeatures(this);
       
       // Create help system
-      if (!window.HelpSystem) {
+      if (typeof window.HelpSystem !== 'function') {
         throw new Error('HelpSystem class not found');
       }
       this.helpSystem = new window.HelpSystem();
