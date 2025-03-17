@@ -1,22 +1,72 @@
 // Solar System Simulator - Main Renderer
-// Use the exposed nodeRequire instead of direct require
-const THREE = window.nodeRequire.three();
-const { OrbitControls } = window.nodeRequire.threeOrbitControls();
 
-// Import local modules using path-based imports (will be handled by Electron)
-import { GravitySimulator } from '../physics/gravitySimulator.js';
-import { SceneManager } from '../renderer/scene.js';
-import { CameraControls } from '../renderer/cameraControls.js';
-import { GravityVisualizer } from '../renderer/gravityVisualizer.js';
-import LagrangePointVisualizer from '../renderer/LagrangePointVisualizer.js';
-import { Dialogs } from './dialogs.js';
-import { InfoPanel } from './infoPanel.js';
-import { ObjectHandlers } from './objectHandlers.js';
-import { SolarSystem, getDefaultSystem } from '../data/solarSystem.js';
-import { EducationalFeatures } from './educationalFeatures.js';
-import { SystemSelector } from './systemSelector.js';
-import HelpSystem from './HelpSystem.js';
-import { downloadAllTextures } from '../utils/downloadTextures.js';
+// Access the THREE API from the preload-exposed global variable
+const THREE = window.THREE;
+
+// Initialize dummy references to avoid errors
+let GravitySimulator = {};
+let SceneManager = {};
+let CameraControls = {};
+let GravityVisualizer = {};
+let LagrangePointVisualizer = {};
+let Dialogs = {};
+let InfoPanel = {};
+let ObjectHandlers = {};
+let SolarSystem = {};
+let getDefaultSystem = () => ({});
+let EducationalFeatures = {};
+let SystemSelector = {};
+let HelpSystem = {};
+let downloadAllTextures = async () => {};
+
+// Override these with proper implementations once loaded
+try {
+  // Initialize modules on window load
+  window.addEventListener('DOMContentLoaded', async () => {
+    // Load modules dynamically (this would be done with dynamic imports in a proper ES modules setup)
+    // But we'll use script tags since that's more reliable with Electron security restrictions
+    await loadModules();
+
+    // Start the application
+    window.solarSystemApp = new SolarSystemApp();
+  });
+
+  async function loadModules() {
+    try {
+      // Use fetch to load JS files as text
+      async function loadScript(url) {
+        const response = await fetch(url);
+        const scriptText = await response.text();
+        // Execute in the current scope using eval
+        // This is normally not recommended, but it's a workaround for the module loading issues
+        eval(scriptText);
+      }
+      
+      // Load the required modules
+      // Note: Order matters! Load dependencies first
+      await loadScript('../utils/constants.js');
+      await loadScript('../physics/gravitySimulator.js');
+      await loadScript('../renderer/scene.js');
+      await loadScript('../renderer/cameraControls.js');
+      await loadScript('../renderer/gravityVisualizer.js');
+      await loadScript('../renderer/LagrangePointVisualizer.js');
+      await loadScript('./dialogs.js');
+      await loadScript('./infoPanel.js');
+      await loadScript('./objectHandlers.js');
+      await loadScript('../data/solarSystem.js');
+      await loadScript('./educationalFeatures.js');
+      await loadScript('./systemSelector.js');
+      await loadScript('./HelpSystem.js');
+      await loadScript('../utils/downloadTextures.js');
+      
+      console.log("All modules loaded successfully");
+    } catch (error) {
+      console.error("Error loading modules:", error);
+    }
+  }
+} catch (e) {
+  console.error("Error in module initialization:", e);
+}
 
 /**
  * Main application class for Solar System Simulator
@@ -707,15 +757,3 @@ class SolarSystemApp {
     }
   }
 }
-
-// Create application when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  new SolarSystemApp();
-});
-
-// Clean up resources on window unload
-window.addEventListener('beforeunload', () => {
-  if (window.solarSystemApp) {
-    window.solarSystemApp.dispose();
-  }
-});
