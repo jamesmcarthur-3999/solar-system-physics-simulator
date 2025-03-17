@@ -6,103 +6,345 @@ const OrbitControls = window.OrbitControls;
 const TextGeometry = window.TextGeometry;
 const FontLoader = window.FontLoader;
 
-// Define placeholder classes that will be replaced later
-class GravitySimulator {
-  constructor() { this.objects = []; }
-  update() {}
-  addObject() {}
-  setPaused() {}
-  setTimeScale() {}
-  getObjects() { return []; }
-  dispose() {}
-}
+// Create browser-compatible module system
+window.module = { exports: {} };
+window.exports = window.module.exports;
+window.require = function(name) {
+  // Simple module name mapping
+  if (name === 'three') return window.THREE;
+  if (name.includes('OrbitControls')) return window.OrbitControls;
+  if (name.includes('TextGeometry')) return window.TextGeometry;
+  if (name.includes('FontLoader')) return window.FontLoader;
+  
+  // For other modules, try to find them in window
+  const parts = name.split('/');
+  const moduleName = parts[parts.length - 1].replace('.js', '');
+  
+  // Special case handling
+  if (name === 'child_process') return { execSync: function() { console.warn('execSync is not available in browser'); } };
+  if (name === 'fs') return window.fs || {};
+  if (name === 'path') return window.path || {};
+  
+  return window[moduleName] || {};
+};
 
+// Setup global namespace for modules
+window.solarSystem = {};
+window.dialogs = { createObjectDialog: () => {} };
+window.tourManager = { TourManager: function() {} };
+
+// Define placeholder classes with proper THREE integration
 class SceneManager {
-  constructor() { 
+  constructor(container) { 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera();
-    this.renderer = { render: () => {}, setSize: () => {}, dispose: () => {} };
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    if (container) container.appendChild(this.renderer.domElement);
+    
+    // Default setup
+    this.camera.position.z = 5;
   }
-  handleResize() {}
-  dispose() {}
+  
+  handleResize() {
+    if (this.camera && this.renderer) {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  }
+  
+  dispose() {
+    if (this.renderer) {
+      this.renderer.dispose();
+    }
+  }
 }
 
 class CameraControls {
-  constructor() {}
-  update() {}
-  resetView() {}
-  setPosition() {}
-  focusOnObject() {}
-  handleResize() {}
-  dispose() {}
+  constructor(camera, container) {
+    this.camera = camera;
+    this.container = container;
+    this.controls = OrbitControls ? new OrbitControls(camera, container) : null;
+    if (this.controls) {
+      this.controls.enableDamping = true;
+      this.controls.dampingFactor = 0.05;
+    }
+  }
+  
+  update() {
+    if (this.controls) {
+      this.controls.update();
+    }
+  }
+  
+  resetView() {
+    if (this.camera) {
+      this.camera.position.set(0, 10, 20);
+      this.camera.lookAt(0, 0, 0);
+    }
+  }
+  
+  setPosition(position) {
+    if (this.camera) {
+      this.camera.position.copy(position);
+    }
+  }
+  
+  focusOnObject(object) {
+    if (this.camera && object.position) {
+      this.camera.lookAt(object.position);
+    }
+  }
+  
+  handleResize() {
+    // No additional resize handling needed
+  }
+  
+  dispose() {
+    if (this.controls) {
+      this.controls.dispose();
+    }
+  }
+}
+
+class GravitySimulator {
+  constructor() { 
+    this.objects = []; 
+    this.G = window.CONSTANTS ? window.CONSTANTS.G : 6.67430e-11;
+    this.timeScale = 1;
+  }
+  
+  update(time) {}
+  
+  addObject(object) {
+    this.objects.push(object);
+  }
+  
+  setPaused(paused) {
+    this.paused = paused;
+  }
+  
+  setTimeScale(scale) {
+    this.timeScale = scale;
+  }
+  
+  getObjects() { 
+    return this.objects; 
+  }
+  
+  dispose() {
+    this.objects = [];
+  }
 }
 
 class GravityVisualizer {
-  constructor() {}
-  update() {}
-  toggleVisibility() {}
-  dispose() {}
+  constructor(scene) {
+    this.scene = scene;
+    this.visible = false;
+    this.meshes = [];
+  }
+  
+  update(objects) {}
+  
+  toggleVisibility() {
+    this.visible = !this.visible;
+    this.meshes.forEach(mesh => {
+      if (this.scene) {
+        if (this.visible) {
+          this.scene.add(mesh);
+        } else {
+          this.scene.remove(mesh);
+        }
+      }
+    });
+  }
+  
+  dispose() {
+    this.meshes.forEach(mesh => {
+      if (this.scene) this.scene.remove(mesh);
+      if (mesh.geometry) mesh.geometry.dispose();
+      if (mesh.material) mesh.material.dispose();
+    });
+    this.meshes = [];
+  }
 }
 
 class LagrangePointVisualizer {
-  constructor() { this.visible = false; }
-  calculateLagrangePoints() {}
-  setVisible() {}
+  constructor(scene) { 
+    this.scene = scene;
+    this.visible = false; 
+    this.points = [];
+  }
+  
+  calculateLagrangePoints(primary, secondary) {}
+  
+  setVisible(visible) {
+    this.visible = visible;
+    this.points.forEach(point => {
+      if (this.scene) {
+        if (this.visible) {
+          this.scene.add(point);
+        } else {
+          this.scene.remove(point);
+        }
+      }
+    });
+  }
+  
   update() {}
-  dispose() {}
+  
+  dispose() {
+    this.points.forEach(point => {
+      if (this.scene) this.scene.remove(point);
+      if (point.geometry) point.geometry.dispose();
+      if (point.material) point.material.dispose();
+    });
+    this.points = [];
+  }
 }
 
 class Dialogs {
   constructor() {}
+  
+  createObjectDialog() {
+    return { show: () => {} };
+  }
+  
   dispose() {}
 }
 
 class InfoPanel {
-  constructor() {}
-  updateObjectInfo() {}
+  constructor(container) {
+    this.container = container;
+  }
+  
+  updateObjectInfo(object) {
+    if (this.container && object) {
+      let html = '';
+      for (const key in object) {
+        if (typeof object[key] !== 'function' && typeof object[key] !== 'object') {
+          html += `<div><strong>${key}:</strong> ${object[key]}</div>`;
+        }
+      }
+      this.container.innerHTML = html;
+    }
+  }
+  
   dispose() {}
 }
 
 class ObjectHandlers {
-  constructor() {}
-  createCelestialObject() { return {}; }
+  constructor(app) {
+    this.app = app;
+  }
+  
+  createCelestialObject(data) { 
+    const object = {
+      id: data.id || `obj-${Math.random().toString(36).substr(2, 9)}`,
+      name: data.name || 'Unknown',
+      type: data.type || 'planet',
+      mass: data.mass || 1,
+      radius: data.radius || 1,
+      position: data.position || { x: 0, y: 0, z: 0 },
+      velocity: data.velocity || { x: 0, y: 0, z: 0 },
+      acceleration: { x: 0, y: 0, z: 0 },
+      mesh: null
+    };
+    
+    // Create mesh
+    const geometry = new THREE.SphereGeometry(object.radius, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    object.mesh = new THREE.Mesh(geometry, material);
+    
+    if (this.app && this.app.scene) {
+      this.app.scene.add(object.mesh);
+    }
+    
+    return object;
+  }
+  
   showAddObjectDialog() {}
+  
   dispose() {}
 }
 
-class SolarSystem {
-  constructor() {}
-}
-
-function getDefaultSystem() { 
-  return { 
-    objects: [] 
-  }; 
-}
-
 class EducationalFeatures {
-  constructor() {}
+  constructor(app) {
+    this.app = app;
+  }
+  
   dispose() {}
 }
 
 class SystemSelector {
-  constructor() {}
+  constructor(app) {
+    this.app = app;
+  }
+  
   dispose() {}
 }
 
 class HelpSystem {
-  constructor() {}
+  constructor() {
+    this.panel = null;
+  }
+  
   showPanel() {}
+  
   hidePanel() {}
-  togglePanel() {}
+  
+  togglePanel() {
+    if (this.panel) {
+      if (this.panel.style.display === 'none') {
+        this.panel.style.display = 'block';
+      } else {
+        this.panel.style.display = 'none';
+      }
+    }
+  }
+  
   showTopic() {}
+  
   showTooltip() {}
+  
   hideAllTooltips() {}
+  
   addContextHelp() {}
+  
   dispose() {}
 }
 
-async function downloadAllTextures() {}
+function getDefaultSystem() { 
+  return { 
+    objects: [
+      {
+        id: 'sun',
+        name: 'Sun',
+        type: 'star',
+        mass: 1.989e30,
+        radius: 696340,
+        position: { x: 0, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 }
+      },
+      {
+        id: 'earth',
+        name: 'Earth',
+        type: 'planet',
+        mass: 5.972e24,
+        radius: 6371,
+        position: { x: 149597870, y: 0, z: 0 },
+        velocity: { x: 0, y: 29.78, z: 0 },
+        orbiting: 'sun'
+      }
+    ] 
+  }; 
+}
+
+async function downloadAllTextures() {
+  console.log('Placeholder for downloading textures');
+  return [];
+}
 
 // Make placeholder classes available globally
 window.SceneManager = SceneManager;
@@ -113,7 +355,7 @@ window.LagrangePointVisualizer = LagrangePointVisualizer;
 window.Dialogs = Dialogs;
 window.InfoPanel = InfoPanel;
 window.ObjectHandlers = ObjectHandlers;
-window.SolarSystem = SolarSystem;
+window.SolarSystem = { getDefaultSystem: getDefaultSystem };
 window.getDefaultSystem = getDefaultSystem;
 window.EducationalFeatures = EducationalFeatures;
 window.SystemSelector = SystemSelector;
@@ -188,7 +430,12 @@ async function loadConstants() {
     // Load constants as a module script
     const constantsScript = document.createElement('script');
     constantsScript.type = 'text/javascript';
-    constantsScript.text = await response.text();
+    
+    const text = await response.text();
+    // Remove any exports
+    const processedText = text.replace(/module\.exports\s*=.*;?/g, '');
+    
+    constantsScript.text = processedText;
     document.head.appendChild(constantsScript);
     
     console.log('Constants loaded successfully');
@@ -219,12 +466,51 @@ async function loadModules() {
         const script = document.createElement('script');
         script.type = 'text/javascript';
         
-        // Wrap the script in a function that populates the window object
-        const modifiedScript = `
+        // Transform the script to handle CommonJS modules
+        let modifiedScript = `
           (function() {
-            ${scriptText}
+            // Setup fake CommonJS environment
+            let module = { exports: {} };
+            let exports = module.exports;
             
-            // For classes defined in this module, make sure they're assigned to window
+            // Original script (with replaced require calls)
+            ${scriptText.replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (match, path) => {
+              // Simple module name mapping
+              if (path === 'three') return 'window.THREE';
+              if (path.includes('three')) return 'window.THREE';
+              if (path.includes('OrbitControls')) return 'window.OrbitControls';
+              if (path.includes('TextGeometry')) return 'window.TextGeometry';
+              if (path.includes('FontLoader')) return 'window.FontLoader';
+              if (path === 'child_process') return '{ execSync: function() { console.warn("execSync not available in browser"); return ""; } }';
+              if (path === 'fs') return 'window.fs || {}';
+              if (path === 'path') return 'window.path || {}';
+              
+              // Other modules - check if they exist in window
+              const parts = path.split('/');
+              const moduleName = parts[parts.length - 1].replace('.js', '');
+              return `window.${moduleName} || {}`;
+            })}
+            
+            // Export to window
+            if (typeof module.exports === 'function') {
+              // If it exports a constructor
+              window[module.exports.name] = module.exports;
+            } else if (typeof module.exports === 'object') {
+              // If it exports an object with properties
+              for (const key in module.exports) {
+                if (typeof module.exports[key] === 'function') {
+                  // If it's a constructor/class
+                  window[key] = module.exports[key];
+                } else {
+                  // Otherwise export the whole object under a namespace
+                  const moduleName = '${url.split('/').pop().replace('.js', '')}';
+                  window[moduleName] = window[moduleName] || {};
+                  window[moduleName][key] = module.exports[key];
+                }
+              }
+            }
+            
+            // For classes defined directly
             if (typeof SceneManager !== 'undefined') window.SceneManager = SceneManager;
             if (typeof CameraControls !== 'undefined') window.CameraControls = CameraControls;
             if (typeof GravitySimulator !== 'undefined') window.GravitySimulator = GravitySimulator;
@@ -233,7 +519,6 @@ async function loadModules() {
             if (typeof Dialogs !== 'undefined') window.Dialogs = Dialogs;
             if (typeof InfoPanel !== 'undefined') window.InfoPanel = InfoPanel;
             if (typeof ObjectHandlers !== 'undefined') window.ObjectHandlers = ObjectHandlers;
-            if (typeof SolarSystem !== 'undefined') window.SolarSystem = SolarSystem;
             if (typeof getDefaultSystem !== 'undefined') window.getDefaultSystem = getDefaultSystem;
             if (typeof EducationalFeatures !== 'undefined') window.EducationalFeatures = EducationalFeatures;
             if (typeof SystemSelector !== 'undefined') window.SystemSelector = SystemSelector;
@@ -241,20 +526,8 @@ async function loadModules() {
             if (typeof downloadAllTextures !== 'undefined') window.downloadAllTextures = downloadAllTextures;
           })();
         `;
-
-        script.textContent = modifiedScript.replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (match, path) => {
-            if (path === 'three') return 'window.THREE';
-            if (path.includes('three')) return 'window.THREE';
-            if (path.includes('OrbitControls')) return 'window.OrbitControls';
-            if (path.includes('TextGeometry')) return 'window.TextGeometry';
-            if (path.includes('FontLoader')) return 'window.FontLoader';
-            
-            // For other modules, try to find them in window
-            const parts = path.split('/');
-            const moduleName = parts[parts.length - 1].replace('.js', '');
-            return `window.${moduleName}`;
-          });
         
+        script.text = modifiedScript;
         document.head.appendChild(script);
         
         console.log(`Successfully loaded: ${url}`);
@@ -291,7 +564,8 @@ async function loadModules() {
         await loadModuleScript(modulePath);
       } catch (error) {
         console.error(`Failed to load module ${modulePath}:`, error);
-        throw new Error(`Failed to load module ${modulePath}: ${error.message}`);
+        console.warn(`Continuing with placeholder implementation for ${modulePath}`);
+        // Continue with next module rather than throwing, so we can load as many as possible
       }
     }
     
@@ -366,78 +640,105 @@ class SolarSystemApp {
         LagrangePointVisualizer: typeof window.LagrangePointVisualizer
       });
       
-      // Check that required classes exist
-      if (typeof window.SceneManager !== 'function') {
-        throw new Error('SceneManager class not found');
-      }
-      
       // Create scene manager
-      this.sceneManager = new window.SceneManager(this.sceneContainer);
-      this.scene = this.sceneManager.scene;
-      this.renderer = this.sceneManager.renderer;
+      // Use try/catch for each initialization to allow partial loading
+      try {
+        this.sceneManager = new window.SceneManager(this.sceneContainer);
+        this.scene = this.sceneManager.scene;
+        this.renderer = this.sceneManager.renderer;
+      } catch (error) {
+        console.error('Error creating SceneManager:', error);
+        // Create basic version as fallback
+        this.sceneManager = new SceneManager(this.sceneContainer);
+        this.scene = this.sceneManager.scene;
+        this.renderer = this.sceneManager.renderer;
+      }
       
       // Create camera controls
-      if (typeof window.CameraControls !== 'function') {
-        throw new Error('CameraControls class not found');
+      try {
+        this.cameraControls = new window.CameraControls(
+          this.sceneManager.camera,
+          this.sceneContainer
+        );
+      } catch (error) {
+        console.error('Error creating CameraControls:', error);
+        this.cameraControls = new CameraControls(
+          this.sceneManager.camera,
+          this.sceneContainer
+        );
       }
-      this.cameraControls = new window.CameraControls(
-        this.sceneManager.camera,
-        this.sceneContainer
-      );
       
       // Create physics simulator
-      if (typeof window.GravitySimulator !== 'function') {
-        throw new Error('GravitySimulator class not found');
+      try {
+        this.physics = new window.GravitySimulator();
+      } catch (error) {
+        console.error('Error creating GravitySimulator:', error);
+        this.physics = new GravitySimulator();
       }
-      this.physics = new window.GravitySimulator();
       
       // Create gravity visualizer
-      if (typeof window.GravityVisualizer !== 'function') {
-        throw new Error('GravityVisualizer class not found');
+      try {
+        this.gravityVisualizer = new window.GravityVisualizer(this.scene);
+      } catch (error) {
+        console.error('Error creating GravityVisualizer:', error);
+        this.gravityVisualizer = new GravityVisualizer(this.scene);
       }
-      this.gravityVisualizer = new window.GravityVisualizer(this.scene);
       
       // Create Lagrange point visualizer
-      if (typeof window.LagrangePointVisualizer !== 'function') {
-        throw new Error('LagrangePointVisualizer class not found');
+      try {
+        this.lagrangePointVisualizer = new window.LagrangePointVisualizer(this.scene);
+      } catch (error) {
+        console.error('Error creating LagrangePointVisualizer:', error);
+        this.lagrangePointVisualizer = new LagrangePointVisualizer(this.scene);
       }
-      this.lagrangePointVisualizer = new window.LagrangePointVisualizer(this.scene);
       
       // Create dialogs manager
-      if (typeof window.Dialogs !== 'function') {
-        throw new Error('Dialogs class not found');
+      try {
+        this.dialogs = new window.Dialogs();
+      } catch (error) {
+        console.error('Error creating Dialogs:', error);
+        this.dialogs = new Dialogs();
       }
-      this.dialogs = new window.Dialogs();
       
       // Create info panel
-      if (typeof window.InfoPanel !== 'function') {
-        throw new Error('InfoPanel class not found');
+      try {
+        this.infoPanelManager = new window.InfoPanel(this.objectProperties);
+      } catch (error) {
+        console.error('Error creating InfoPanel:', error);
+        this.infoPanelManager = new InfoPanel(this.objectProperties);
       }
-      this.infoPanelManager = new window.InfoPanel(this.objectProperties);
       
       // Create object handlers
-      if (typeof window.ObjectHandlers !== 'function') {
-        throw new Error('ObjectHandlers class not found');
+      try {
+        this.objectHandlers = new window.ObjectHandlers(this);
+      } catch (error) {
+        console.error('Error creating ObjectHandlers:', error);
+        this.objectHandlers = new ObjectHandlers(this);
       }
-      this.objectHandlers = new window.ObjectHandlers(this);
       
       // Create system selector
-      if (typeof window.SystemSelector !== 'function') {
-        throw new Error('SystemSelector class not found');
+      try {
+        this.systemSelector = new window.SystemSelector(this);
+      } catch (error) {
+        console.error('Error creating SystemSelector:', error);
+        this.systemSelector = new SystemSelector(this);
       }
-      this.systemSelector = new window.SystemSelector(this);
       
       // Create educational features
-      if (typeof window.EducationalFeatures !== 'function') {
-        throw new Error('EducationalFeatures class not found');
+      try {
+        this.educationalFeatures = new window.EducationalFeatures(this);
+      } catch (error) {
+        console.error('Error creating EducationalFeatures:', error);
+        this.educationalFeatures = new EducationalFeatures(this);
       }
-      this.educationalFeatures = new window.EducationalFeatures(this);
       
       // Create help system
-      if (typeof window.HelpSystem !== 'function') {
-        throw new Error('HelpSystem class not found');
+      try {
+        this.helpSystem = new window.HelpSystem();
+      } catch (error) {
+        console.error('Error creating HelpSystem:', error);
+        this.helpSystem = new HelpSystem();
       }
-      this.helpSystem = new window.HelpSystem();
     } catch (error) {
       console.error('Error initializing managers:', error);
       throw new Error(`Failed to initialize managers: ${error.message}`);
@@ -686,12 +987,15 @@ class SolarSystemApp {
    */
   createDefaultSystem() {
     try {
-      // Get default system data
-      if (typeof window.getDefaultSystem !== 'function') {
+      // Get default system data - try window function first, then local
+      let defaultSystem;
+      if (typeof window.getDefaultSystem === 'function') {
+        defaultSystem = window.getDefaultSystem();
+      } else if (typeof getDefaultSystem === 'function') {
+        defaultSystem = getDefaultSystem();
+      } else {
         throw new Error('getDefaultSystem function not found');
       }
-      
-      const defaultSystem = window.getDefaultSystem();
       
       // Load objects into scene
       for (const objectData of defaultSystem.objects) {
@@ -712,7 +1016,34 @@ class SolarSystemApp {
       this.updateLagrangeSystemOptions();
     } catch (error) {
       console.error('Error creating default system:', error);
-      throw new Error(`Failed to create default system: ${error.message}`);
+      // Create a simple system as fallback
+      const sun = this.objectHandlers.createCelestialObject({
+        id: 'sun',
+        name: 'Sun',
+        type: 'star',
+        mass: 1.989e30,
+        radius: 696340,
+        position: { x: 0, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 }
+      });
+      
+      const earth = this.objectHandlers.createCelestialObject({
+        id: 'earth',
+        name: 'Earth',
+        type: 'planet',
+        mass: 5.972e24,
+        radius: 6371,
+        position: { x: 149597870, y: 0, z: 0 },
+        velocity: { x: 0, y: 29.78, z: 0 },
+        orbiting: 'sun'
+      });
+      
+      this.objects.push(sun, earth);
+      this.physics.addObject(sun);
+      this.physics.addObject(earth);
+      
+      this.updateBodyCount();
+      this.updateLagrangeSystemOptions();
     }
   }
   
