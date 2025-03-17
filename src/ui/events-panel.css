@@ -1,0 +1,279 @@
+/* Styles for Events Panel */
+.events-panel {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  width: 350px;
+  max-height: 70vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  color: white;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+  z-index: 100;
+  display: none;
+  transition: all 0.3s ease;
+}
+
+/* Panel header */
+.events-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: rgba(40, 40, 40, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.events-panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.events-panel-header .close-button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.events-panel-header .close-button:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Panel controls */
+.events-panel-controls {
+  padding: 10px 16px;
+  background-color: rgba(30, 30, 30, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+}
+
+.events-panel-controls label {
+  font-size: 13px;
+  margin-right: 8px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.events-panel-controls select {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+.events-panel-controls select:focus {
+  border-color: rgba(64, 156, 255, 0.5);
+}
+
+/* Events list */
+.events-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 24px 16px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Event item */
+.event-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: flex-start;
+  transition: background-color 0.2s ease;
+}
+
+.event-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Different event type styles */
+.event-conjunction {
+  border-left: 3px solid #ffcc00;
+}
+
+.event-opposition {
+  border-left: 3px solid #ff6b6b;
+}
+
+.event-eclipse {
+  border-left: 3px solid #c792ea;
+}
+
+.event-closeApproach {
+  border-left: 3px solid #3fc4ff;
+}
+
+/* Event icon */
+.event-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+}
+
+.event-conjunction .event-icon {
+  background-color: rgba(255, 204, 0, 0.2);
+  color: #ffcc00;
+}
+
+.event-opposition .event-icon {
+  background-color: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+}
+
+.event-eclipse .event-icon {
+  background-color: rgba(199, 146, 234, 0.2);
+  color: #c792ea;
+}
+
+.event-closeApproach .event-icon {
+  background-color: rgba(63, 196, 255, 0.2);
+  color: #3fc4ff;
+}
+
+/* Event content */
+.event-content {
+  flex: 1;
+}
+
+.event-title {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.event-description {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.event-time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Focus button */
+.focus-button {
+  background-color: rgba(64, 156, 255, 0.2);
+  color: rgb(64, 156, 255);
+  border: 1px solid rgba(64, 156, 255, 0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 12px;
+  align-self: center;
+}
+
+.focus-button:hover {
+  background-color: rgba(64, 156, 255, 0.3);
+  border-color: rgba(64, 156, 255, 0.5);
+}
+
+/* Scrollbar styles for the events list */
+.events-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.events-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.events-list::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.events-list::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Events panel toggle button (to be added in main UI) */
+.events-toggle-button {
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.events-toggle-button:hover {
+  background-color: rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.events-toggle-button .events-count {
+  background-color: rgba(255, 204, 0, 0.9);
+  color: black;
+  font-size: 10px;
+  font-weight: bold;
+  height: 16px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .events-panel {
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: 50vh;
+  }
+}
+
+/* Animation for new events */
+@keyframes highlight {
+  0% {
+    background-color: rgba(255, 204, 0, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.event-item.new {
+  animation: highlight 2s ease;
+}
