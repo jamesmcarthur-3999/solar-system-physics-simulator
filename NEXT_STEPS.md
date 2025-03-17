@@ -24,24 +24,31 @@ We've focused on addressing the high-priority technical issues mentioned in the 
    - Implemented graceful fallbacks for texture loading failures
    - Added logging for errors to help with debugging
 
+5. **UI Improvements** ✅:
+   - Created object creation dialog
+   - Added information panels for celestial objects
+   - Implemented camera follow mode
+   - Added gravity well visualization
+
 ## Next Priorities
 
 1. **Refine Integration**:
-   - Ensure SceneManager and GravitySimulator are correctly integrated
-   - Test object selection and information display
+   - Ensure all new components (InfoPanel, CameraController, GravityVisualizer) are correctly integrated with the main application
+   - Test object selection and information display with real data
    - Add methods to save and load solar system configurations
+   - Implement proper event handling for UI interactions
 
-2. **UI Improvements**:
-   - Create a proper object creation dialog
-   - Add object modification controls
-   - Implement camera controls for following objects
-   - Add performance indicators and settings panel
-
-3. **Educational Features**:
-   - Add information panels for celestial objects
-   - Create visualizations for gravity wells
-   - Implement habitability indicators
+2. **Educational Features**:
    - Add astronomical event detection (conjunctions, eclipses)
+   - Create tutorials or guided tours of the solar system
+   - Add educational content about celestial mechanics
+   - Implement measurement tools for distances and orbital periods
+
+3. **Performance Optimization**:
+   - Implement the Barnes-Hut algorithm for N-body simulation
+   - Add level-of-detail rendering for distant objects
+   - Optimize orbit line generation
+   - Add adaptive physics resolution based on camera distance
 
 ## Technical Tasks
 
@@ -51,114 +58,167 @@ We've focused on addressing the high-priority technical issues mentioned in the 
    - Verify memory usage over long-running simulations
    - Test on different platforms (Windows, macOS, Linux)
 
-2. **Performance Optimization**:
-   - Implement the Barnes-Hut algorithm for N-body simulation
-   - Add level-of-detail rendering for distant objects
-   - Optimize orbit line generation
-   - Add adaptive physics resolution based on camera distance
-
-3. **Usability Enhancements**:
+2. **Usability Enhancements**:
    - Add keyboard shortcuts for common actions
    - Implement tooltips and help system
    - Create a guided tutorial for new users
    - Add export functionality for screenshots and videos
 
+3. **Advanced Visualization**:
+   - Add orbit prediction visualization
+   - Implement trajectory planning tools
+   - Add visualization of Lagrange points
+   - Create visualization for gravitational lensing effects
+
 ## Implementation Guide for Upcoming Features
 
-### 1. Object Creation Dialog
-
-Create a modal dialog that allows users to create custom celestial objects:
+### 1. Save/Load Solar System Configurations
 
 ```javascript
-// Create a basic modal dialog
-function createObjectDialog() {
-  const dialog = document.createElement('div');
-  dialog.className = 'modal-dialog';
+// Create methods in main application class
+function saveSolarSystem(filename) {
+  const saveData = {
+    objects: [],
+    settings: {
+      timeScale: this.timeScale,
+      // Add other relevant settings
+    }
+  };
   
-  // Add form elements for name, mass, radius, position, velocity, etc.
-  // Add validation for input values
-  // Add color picker for object color
-  // Add buttons for cancel and create
-  
-  document.body.appendChild(dialog);
-  
-  // Return promise that resolves with new object data or rejects if canceled
-  return new Promise((resolve, reject) => {
-    // ...
+  // Collect object data
+  this.objects.forEach(obj => {
+    saveData.objects.push({
+      id: obj.id,
+      name: obj.name,
+      type: obj.type,
+      mass: obj.mass,
+      radius: obj.radius,
+      position: {
+        x: obj.position.x,
+        y: obj.position.y,
+        z: obj.position.z
+      },
+      velocity: {
+        x: obj.velocity.x,
+        y: obj.velocity.y,
+        z: obj.velocity.z
+      },
+      // Add other object properties
+    });
   });
+  
+  // Use Electron's dialog to get save location
+  // Write to file
+}
+
+function loadSolarSystem(filename) {
+  // Use Electron's dialog to get file location
+  // Read file
+  // Parse JSON
+  // Create objects and apply settings
 }
 ```
 
-### 2. Camera Follow Mode
-
-Implement a camera mode that follows a selected celestial object:
+### 2. Orbital Prediction Visualization
 
 ```javascript
 // Add to SceneManager
-function followObject(objectId) {
-  this.followingObjectId = objectId;
-  this.followMode = true;
-}
-
-// Update animate method
-animate() {
-  // ...
+function showOrbitPrediction(objectId, numSteps = 1000, timeStepDays = 1) {
+  const obj = this.objects.get(objectId);
+  if (!obj) return;
   
-  // Update camera if in follow mode
-  if (this.followMode && this.followingObjectId) {
-    const obj = this.objects.get(this.followingObjectId);
-    if (obj) {
-      const offset = new THREE.Vector3(0, 50, 100);
-      offset.applyQuaternion(this.camera.quaternion);
-      this.camera.position.copy(obj.position).add(offset);
-      this.camera.lookAt(obj.position);
+  // Clone the current solar system state
+  const simulationObjects = this.objects.map(o => ({
+    position: o.position.clone(),
+    velocity: o.velocity.clone(),
+    mass: o.mass,
+    id: o.id
+  }));
+  
+  // Create a temporary physics simulator
+  const simulator = new GravitySimulator();
+  simulationObjects.forEach(o => simulator.addBody(o));
+  
+  // Create array to store predicted positions
+  const positions = [];
+  
+  // Run simulation for specified steps
+  const timeStep = timeStepDays * 24 * 60 * 60; // Convert to seconds
+  for (let i = 0; i < numSteps; i++) {
+    simulator.update(timeStep);
+    
+    // Store position of target object
+    const targetObj = simulationObjects.find(o => o.id === objectId);
+    positions.push(targetObj.position.clone());
+  }
+  
+  // Create line geometry from positions
+  const geometry = new THREE.BufferGeometry().setFromPoints(positions);
+  
+  // Create line material
+  const material = new THREE.LineBasicMaterial({
+    color: 0xffff00,
+    transparent: true,
+    opacity: 0.6
+  });
+  
+  // Create line and add to scene
+  const predictedOrbit = new THREE.Line(geometry, material);
+  this.scene.add(predictedOrbit);
+  
+  // Store reference to remove later
+  obj.predictedOrbit = predictedOrbit;
+}
+```
+
+### 3. Astronomical Event Detection
+
+```javascript
+// Add to GravitySimulator
+function detectAstronomicalEvents() {
+  const events = [];
+  
+  // Get all objects
+  const objects = Array.from(this.bodies.values());
+  
+  // Check each pair of objects
+  for (let i = 0; i < objects.length; i++) {
+    for (let j = i + 1; j < objects.length; j++) {
+      const obj1 = objects[i];
+      const obj2 = objects[j];
+      
+      // Calculate distance between objects
+      const distance = obj1.position.distanceTo(obj2.position);
+      
+      // Check for conjunctions (objects appearing close from Earth's perspective)
+      if (obj1.name === 'Earth' || obj2.name === 'Earth') {
+        const earth = obj1.name === 'Earth' ? obj1 : obj2;
+        const other = obj1.name === 'Earth' ? obj2 : obj1;
+        
+        // Calculate angle between Earth-Sun and Earth-other
+        const sun = objects.find(o => o.name === 'Sun');
+        if (sun) {
+          const earthToSun = new THREE.Vector3().subVectors(sun.position, earth.position);
+          const earthToOther = new THREE.Vector3().subVectors(other.position, earth.position);
+          
+          const angle = earthToSun.angleTo(earthToOther) * (180 / Math.PI);
+          
+          if (angle < 1.0) {
+            events.push({
+              type: 'conjunction',
+              objects: [sun.name, other.name],
+              angle: angle.toFixed(2)
+            });
+          }
+        }
+      }
+      
+      // Check for eclipses
+      // More complex logic here...
     }
   }
   
-  // ...
-}
-```
-
-### 3. Gravity Well Visualization
-
-Add a visual representation of gravitational fields:
-
-```javascript
-// Add to SceneManager
-function createGravityVisualizations() {
-  this.objects.forEach(obj => {
-    if (obj.mass > 1e24) { // Only show for large objects
-      const resolution = 32;
-      const size = 100;
-      
-      // Create a plane geometry
-      const geometry = new THREE.PlaneGeometry(size, size, resolution, resolution);
-      
-      // Create deformation based on mass
-      const vertices = geometry.getAttribute('position').array;
-      for (let i = 0; i < vertices.length; i += 3) {
-        const x = vertices[i];
-        const z = vertices[i + 2];
-        const distance = Math.sqrt(x * x + z * z);
-        vertices[i + 1] = -Math.min(10, obj.mass / 1e30 * Math.max(0, size/2 - distance));
-      }
-      
-      // Create material with grid texture
-      const material = new THREE.MeshBasicMaterial({
-        color: 0x0088ff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.3
-      });
-      
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.copy(obj.position);
-      mesh.rotation.x = Math.PI / 2;
-      
-      this.scene.add(mesh);
-      obj.gravityMesh = mesh;
-    }
-  });
+  return events;
 }
 ```
 
