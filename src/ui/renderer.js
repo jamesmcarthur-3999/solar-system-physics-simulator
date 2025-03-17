@@ -6,24 +6,40 @@ const OrbitControls = window.OrbitControls;
 const TextGeometry = window.TextGeometry;
 const FontLoader = window.FontLoader;
 
+// Browser polyfills for Node.js environment
+window.__dirname = '/'; // Simulate __dirname for browser context
+window.__filename = '/index.html'; // Simulate __filename for browser context
+
 // Create browser-compatible module system
 window.module = { exports: {} };
 window.exports = window.module.exports;
 window.require = function(name) {
   // Simple module name mapping
   if (name === 'three') return window.THREE;
-  if (name.includes('OrbitControls')) return window.OrbitControls;
-  if (name.includes('TextGeometry')) return window.TextGeometry;
-  if (name.includes('FontLoader')) return window.FontLoader;
+  if (name.includes('OrbitControls')) return { OrbitControls: window.OrbitControls };
+  if (name.includes('TextGeometry')) return { TextGeometry: window.TextGeometry };
+  if (name.includes('FontLoader')) return { FontLoader: window.FontLoader };
   
   // For other modules, try to find them in window
   const parts = name.split('/');
   const moduleName = parts[parts.length - 1].replace('.js', '');
   
   // Special case handling
-  if (name === 'child_process') return { execSync: function() { console.warn('execSync is not available in browser'); } };
+  if (name === 'child_process') return { 
+    execSync: function() { 
+      console.warn('execSync is not available in browser'); 
+      return ""; 
+    } 
+  };
   if (name === 'fs') return window.fs || {};
-  if (name === 'path') return window.path || {};
+  if (name === 'path') return window.path || {
+    join: function() {
+      return Array.from(arguments).join('/').replace(/\/+/g, '/');
+    },
+    resolve: function() {
+      return Array.from(arguments).join('/').replace(/\/+/g, '/');
+    }
+  };
   
   return window[moduleName] || {};
 };
@@ -32,18 +48,32 @@ window.require = function(name) {
 window.solarSystem = {};
 window.dialogs = { createObjectDialog: () => {} };
 window.tourManager = { TourManager: function() {} };
+window.InformationPanelManager = function() { this.addPanel = () => {}; };
 
 // Define placeholder classes with proper THREE integration
 class SceneManager {
   constructor(container) { 
+    // Initialize scene
     this.scene = new THREE.Scene();
+    
+    // Initialize camera
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    this.camera.position.set(0, 10, 20);
+    this.camera.lookAt(0, 0, 0);
+    
+    // Initialize renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    if (container) container.appendChild(this.renderer.domElement);
+    this.renderer.setClearColor(0x000000);
     
-    // Default setup
-    this.camera.position.z = 5;
+    // Add renderer to container
+    if (container) {
+      container.appendChild(this.renderer.domElement);
+    }
+    
+    // Add ambient light
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    this.scene.add(ambientLight);
   }
   
   handleResize() {
@@ -65,10 +95,16 @@ class CameraControls {
   constructor(camera, container) {
     this.camera = camera;
     this.container = container;
-    this.controls = OrbitControls ? new OrbitControls(camera, container) : null;
-    if (this.controls) {
+    this.controls = null;
+    
+    if (OrbitControls && camera && container) {
+      this.controls = new OrbitControls(camera, container);
       this.controls.enableDamping = true;
       this.controls.dampingFactor = 0.05;
+      this.controls.minDistance = 5;
+      this.controls.maxDistance = 500;
+    } else {
+      console.warn('OrbitControls not available, using fallback controls');
     }
   }
   
@@ -115,7 +151,25 @@ class GravitySimulator {
     this.timeScale = 1;
   }
   
-  update(time) {}
+  update(time) {
+    // Simple circular orbit update for demonstration
+    this.objects.forEach(obj => {
+      if (obj.orbiting) {
+        // Find the parent object
+        const parent = this.objects.find(p => p.id === obj.orbiting);
+        if (parent) {
+          // Update position in a simple circular orbit
+          const angle = time * 0.0001 * this.timeScale;
+          const distance = 10; // Just a simple distance for demonstration
+          obj.position = {
+            x: parent.position.x + Math.cos(angle) * distance,
+            y: parent.position.y,
+            z: parent.position.z + Math.sin(angle) * distance
+          };
+        }
+      }
+    });
+  }
   
   addObject(object) {
     this.objects.push(object);
@@ -175,9 +229,72 @@ class LagrangePointVisualizer {
     this.scene = scene;
     this.visible = false; 
     this.points = [];
+    this.fontLoader = null;
+    this.font = null;
+    
+    // Try to load font if FontLoader is available
+    this.loadFont();
   }
   
-  calculateLagrangePoints(primary, secondary) {}
+  loadFont() {
+    if (window.FontLoader) {
+      try {
+        this.fontLoader = new window.FontLoader();
+        // Use dummy font for now
+        this.font = "Arial";
+      } catch (error) {
+        console.warn('Error loading font:', error);
+      }
+    } else {
+      console.warn('FontLoader not available, skipping font loading');
+    }
+  }
+  
+  calculateLagrangePoints(primary, secondary) {
+    // Simple placeholder implementation
+    console.log('Calculating Lagrange points for', primary.name, 'and', secondary.name);
+    
+    // Clear existing points
+    this.points.forEach(point => {
+      if (this.scene) this.scene.remove(point);
+      if (point.geometry) point.geometry.dispose();
+      if (point.material) point.material.dispose();
+    });
+    this.points = [];
+    
+    // Create simple sphere for each Lagrange point
+    for (let i = 1; i <= 5; i++) {
+      try {
+        const geometry = new THREE.SphereGeometry(0.2, 16, 16);
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        const mesh = new THREE.Mesh(geometry, material);
+        
+        // Position based on which L-point
+        const distance = 5; // Simple fixed distance for demonstration
+        
+        if (i === 1) { // L1
+          mesh.position.set(distance, 0, 0);
+        } else if (i === 2) { // L2
+          mesh.position.set(-distance, 0, 0);
+        } else if (i === 3) { // L3
+          mesh.position.set(0, 0, distance);
+        } else if (i === 4) { // L4
+          mesh.position.set(distance, distance, 0);
+        } else { // L5
+          mesh.position.set(distance, -distance, 0);
+        }
+        
+        this.points.push(mesh);
+        
+        // Add to scene if visible
+        if (this.visible && this.scene) {
+          this.scene.add(mesh);
+        }
+      } catch (error) {
+        console.error('Error creating Lagrange point mesh:', error);
+      }
+    }
+  }
   
   setVisible(visible) {
     this.visible = visible;
@@ -240,28 +357,60 @@ class ObjectHandlers {
   }
   
   createCelestialObject(data) { 
-    const object = {
-      id: data.id || `obj-${Math.random().toString(36).substr(2, 9)}`,
-      name: data.name || 'Unknown',
-      type: data.type || 'planet',
-      mass: data.mass || 1,
-      radius: data.radius || 1,
-      position: data.position || { x: 0, y: 0, z: 0 },
-      velocity: data.velocity || { x: 0, y: 0, z: 0 },
-      acceleration: { x: 0, y: 0, z: 0 },
-      mesh: null
-    };
-    
-    // Create mesh
-    const geometry = new THREE.SphereGeometry(object.radius, 32, 32);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    object.mesh = new THREE.Mesh(geometry, material);
-    
-    if (this.app && this.app.scene) {
-      this.app.scene.add(object.mesh);
+    try {
+      const object = {
+        id: data.id || `obj-${Math.random().toString(36).substr(2, 9)}`,
+        name: data.name || 'Unknown',
+        type: data.type || 'planet',
+        mass: data.mass || 1,
+        radius: data.radius || 1,
+        position: data.position || { x: 0, y: 0, z: 0 },
+        velocity: data.velocity || { x: 0, y: 0, z: 0 },
+        acceleration: { x: 0, y: 0, z: 0 },
+        orbiting: data.orbiting || null,
+        mesh: null
+      };
+      
+      // Create mesh
+      const geometry = new THREE.SphereGeometry(1, 32, 32);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: data.type === 'star' ? 0xffff00 : 0x00ff00 
+      });
+      object.mesh = new THREE.Mesh(geometry, material);
+      object.mesh.scale.set(object.radius / 1000, object.radius / 1000, object.radius / 1000);
+      
+      // Position mesh
+      object.mesh.position.set(
+        object.position.x / 1000000, 
+        object.position.y / 1000000, 
+        object.position.z / 1000000
+      );
+      
+      // Add light if it's a star
+      if (data.type === 'star') {
+        object.light = new THREE.PointLight(0xffffff, 1, 100);
+        object.light.position.copy(object.mesh.position);
+      }
+      
+      // Add to scene
+      if (this.app && this.app.scene) {
+        this.app.scene.add(object.mesh);
+      }
+      
+      return object;
+    } catch (error) {
+      console.error('Error creating celestial object:', error);
+      
+      // Return a minimal object as fallback
+      return {
+        id: data.id || `obj-${Math.random().toString(36).substr(2, 9)}`,
+        name: data.name || 'Unknown',
+        type: data.type || 'planet',
+        position: data.position || { x: 0, y: 0, z: 0 },
+        velocity: data.velocity || { x: 0, y: 0, z: 0 },
+        orbiting: data.orbiting || null
+      };
     }
-    
-    return object;
   }
   
   showAddObjectDialog() {}
@@ -272,6 +421,7 @@ class ObjectHandlers {
 class EducationalFeatures {
   constructor(app) {
     this.app = app;
+    this.informationPanelManager = new window.InformationPanelManager();
   }
   
   dispose() {}
@@ -433,7 +583,9 @@ async function loadConstants() {
     
     const text = await response.text();
     // Remove any exports
-    const processedText = text.replace(/module\.exports\s*=.*;?/g, '');
+    const processedText = text
+      .replace(/module\.exports\s*=.*;?/g, '')
+      .replace(/__dirname/g, '"/src"'); // Replace __dirname with a string
     
     constantsScript.text = processedText;
     document.head.appendChild(constantsScript);
@@ -466,24 +618,28 @@ async function loadModules() {
         const script = document.createElement('script');
         script.type = 'text/javascript';
         
-        // Transform the script to handle CommonJS modules
+        // Transform the script to handle CommonJS modules and Node.js variables
         let modifiedScript = `
           (function() {
             // Setup fake CommonJS environment
             let module = { exports: {} };
             let exports = module.exports;
             
+            // Setup Node.js environment variables
+            const __dirname = '/src';
+            const __filename = '${url}';
+            
             // Original script (with replaced require calls)
             ${scriptText.replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (match, path) => {
               // Simple module name mapping
               if (path === 'three') return 'window.THREE';
               if (path.includes('three')) return 'window.THREE';
-              if (path.includes('OrbitControls')) return 'window.OrbitControls';
-              if (path.includes('TextGeometry')) return 'window.TextGeometry';
-              if (path.includes('FontLoader')) return 'window.FontLoader';
+              if (path.includes('OrbitControls')) return '{ OrbitControls: window.OrbitControls }';
+              if (path.includes('TextGeometry')) return '{ TextGeometry: window.TextGeometry }';
+              if (path.includes('FontLoader')) return '{ FontLoader: window.FontLoader }';
               if (path === 'child_process') return '{ execSync: function() { console.warn("execSync not available in browser"); return ""; } }';
               if (path === 'fs') return 'window.fs || {}';
-              if (path === 'path') return 'window.path || {}';
+              if (path === 'path') return 'window.path || { join: function() { return Array.from(arguments).join("/").replace(/\\/+/g, "/"); } }';
               
               // Other modules - check if they exist in window
               const parts = path.split('/');
@@ -1464,7 +1620,7 @@ class SolarSystemApp {
   }
 }
 
-// Add CSS for error messages
+// Add CSS for error messages and UI components
 const style = document.createElement('style');
 style.textContent = `
 .error-message {
@@ -1480,6 +1636,57 @@ style.textContent = `
   text-align: center;
   max-width: 80%;
   z-index: 9999;
+}
+
+.lagrange-points-control {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  border-radius: 5px;
+  color: white;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lagrange-points-select {
+  padding: 5px;
+  border-radius: 3px;
+}
+
+.lagrange-points-toggle {
+  padding: 5px 10px;
+  border-radius: 3px;
+  background: #2a2a2a;
+  color: white;
+  border: 1px solid #444;
+  cursor: pointer;
+}
+
+.lagrange-points-toggle.active {
+  background: #3a3a3a;
+  border-color: #666;
+}
+
+.help-button {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 20px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
 }
 `;
 document.head.appendChild(style);
