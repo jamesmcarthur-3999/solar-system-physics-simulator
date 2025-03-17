@@ -32,5 +32,11 @@ contextBridge.exposeInMainWorld('appPath', {
   // Provide asset path to allow proper texture loading
   assetsPath: path.join(__dirname, '../assets').replace(/\\/g, '/'),
   // Also provide the application root path for more flexibility
-  rootPath: path.join(__dirname, '..').replace(/\\/g, '/'),
+  rootPath: path.join(__dirname, '..').replace(/\\/g, '/')
+});
+
+// Expose a limited require function for specific modules
+contextBridge.exposeInMainWorld('nodeRequire', {
+  three: () => require('three'),
+  threeOrbitControls: () => require('three/examples/jsm/controls/OrbitControls.js')
 });
