@@ -39,8 +39,8 @@ class CelestialObject {
     this.radius = radius; // km
     this.position = new THREE.Vector3(...position); // [x, y, z] in AU
     this.velocity = new THREE.Vector3(...velocity); // [vx, vy, vz] in km/s
-    this.color = color;
-    this.texturePath = texture;
+    this.color = color || (isStar ? 0xffdd44 : 0x999999);
+    this.texturePath = texture || (isStar ? 'sun.jpg' : null);
     this.isStar = isStar;
     this.visualOptions = {
       // Default visual options
@@ -72,11 +72,13 @@ class CelestialObject {
    */
   createMesh() {
     try {
-      // Create geometry
+      // Create geometry with higher detail for better visual quality
       const geometry = new THREE.SphereGeometry(this.getDisplayRadius(), 64, 64);
       
       // Create material (either with texture or color)
       let material;
+      
+      // Try to load texture
       if (this.texturePath) {
         try {
           const textureLoader = new THREE.TextureLoader();
@@ -84,34 +86,55 @@ class CelestialObject {
           
           // Use proper path resolution for textures
           const texturePath = window.appPath ? 
-            `${window.appPath.assetsPath}/textures/${this.texturePath.split('/').pop()}` : 
-            this.texturePath;
+            `${window.appPath.assetsPath}/textures/${this.texturePath}` : 
+            `assets/textures/${this.texturePath}`;
           
           const texture = textureLoader.load(
             texturePath,
-            // On success: do nothing special
-            undefined,
+            // On success: enhance texture
+            (loadedTexture) => {
+              loadedTexture.anisotropy = 16; // Increase texture quality
+              this.mesh.material.needsUpdate = true;
+            },
             // On progress: do nothing special
             undefined,
             // On error: fall back to color
             (error) => {
               console.warn(`Failed to load texture: ${texturePath}`, error);
-              this.mesh.material = new THREE.MeshPhongMaterial({ color: this.color });
+              this.mesh.material = new THREE.MeshPhongMaterial({ 
+                color: this.color,
+                emissive: this.isStar ? new THREE.Color(this.visualOptions.emissive) : null,
+                emissiveIntensity: this.isStar ? 0.6 : 0,
+                shininess: this.visualOptions.shininess
+              });
             }
           );
           
-          // Apply emissive for stars
-          material = new THREE.MeshPhongMaterial({ 
-            map: texture,
-            emissive: this.isStar ? new THREE.Color(this.visualOptions.emissive) : null,
-            emissiveIntensity: this.isStar ? 0.6 : 0,
-            shininess: this.visualOptions.shininess
-          });
+          // Set up material based on body type
+          if (this.isStar) {
+            // For stars, use emissive material
+            material = new THREE.MeshPhongMaterial({ 
+              map: texture,
+              emissive: new THREE.Color(this.visualOptions.emissive),
+              emissiveIntensity: 0.6,
+              emissiveMap: texture, // Use same texture for emissive to enhance glow
+              shininess: this.visualOptions.shininess
+            });
+          } else {
+            // For planets, use standard material with specular
+            material = new THREE.MeshStandardMaterial({ 
+              map: texture,
+              roughness: 0.7,
+              metalness: 0.1,
+              normalScale: new THREE.Vector2(1, 1)
+            });
+          }
         } catch (e) {
           console.warn(`Failed to setup texture: ${this.texturePath}`, e);
           material = new THREE.MeshPhongMaterial({ color: this.color });
         }
       } else {
+        // Fallback to color material
         material = new THREE.MeshPhongMaterial({ color: this.color });
       }
       
@@ -128,22 +151,72 @@ class CelestialObject {
       // Add atmosphere if specified
       if (this.visualOptions.atmosphere) {
         this.addAtmosphere();
+      } else if (!this.isStar && this.name) {
+        // Add default atmospheres for known planets
+        if (this.name.toLowerCase() === 'earth') {
+          this.visualOptions.atmosphere = 0x6699ff;
+          this.addAtmosphere();
+        } else if (this.name.toLowerCase() === 'venus') {
+          this.visualOptions.atmosphere = 0xffcc66;
+          this.addAtmosphere();
+        } else if (this.name.toLowerCase() === 'mars') {
+          this.visualOptions.atmosphere = 0xff9966;
+          this.addAtmosphere();
+        } else if (this.name.toLowerCase() === 'jupiter' || 
+                 this.name.toLowerCase() === 'saturn' || 
+                 this.name.toLowerCase() === 'uranus' || 
+                 this.name.toLowerCase() === 'neptune') {
+          this.visualOptions.atmosphere = 0xaaccff;
+          this.addAtmosphere();
+        }
       }
       
       // Add cloud layer if specified
       if (this.visualOptions.clouds) {
+        this.addClouds();
+      } else if (this.name && this.name.toLowerCase() === 'earth') {
+        // Add default clouds for Earth
+        this.visualOptions.clouds = 'earth_clouds.jpg';
         this.addClouds();
       }
       
       // Add rings if specified
       if (this.visualOptions.rings) {
         this.addRings();
+      } else if (this.name) {
+        // Add default rings for Saturn and Uranus
+        if (this.name.toLowerCase() === 'saturn') {
+          this.visualOptions.rings = {
+            texture: 'saturn_rings.jpg',
+            innerRadius: 1.1,
+            outerRadius: 2.3,
+            rotation: { x: 27, y: 0, z: 0 }
+          };
+          this.addRings();
+        } else if (this.name.toLowerCase() === 'uranus') {
+          this.visualOptions.rings = {
+            texture: 'uranus_rings.jpg', 
+            innerRadius: 1.3,
+            outerRadius: 1.8,
+            rotation: { x: 90, y: 0, z: 0 }
+          };
+          this.addRings();
+        }
       }
       
       // Add glow effect for stars
       if (this.isStar) {
         this.addStarGlow();
       }
+      
+      // Add light source for stars
+      if (this.isStar && this.visualOptions.emitLight !== false) {
+        this.addLightSource();
+      }
+      
+      // Add surface detail
+      this.addSurfaceDetail();
+      
     } catch (error) {
       console.error('Error creating celestial object mesh:', error);
       // Create fallback representation
@@ -152,6 +225,42 @@ class CelestialObject {
       this.mesh = new THREE.Mesh(geometry, material);
       this.mesh.position.copy(this.position);
       this.mesh.userData.objectId = this.id;
+    }
+  }
+
+  /**
+   * Add a light source for star objects
+   */
+  addLightSource() {
+    try {
+      // Only add light for stars
+      if (!this.isStar) return;
+      
+      // Create point light
+      const lightIntensity = this.radius / 6.96e5; // Relative to Sun's radius
+      const normalizedIntensity = Math.max(0.5, Math.min(1, lightIntensity));
+      
+      this.light = new THREE.PointLight(0xffffff, normalizedIntensity, 0, 1);
+      this.light.position.copy(this.position);
+      
+      // Add subtle color to light based on star type
+      if (this.visualOptions.spectralType) {
+        const spectralColors = {
+          O: 0xaabfff, // Blue
+          B: 0xbfddff, // Blue-white
+          A: 0xddddff, // White
+          F: 0xffffff, // White-yellow
+          G: 0xffffee, // Yellow (Sun)
+          K: 0xffddaa, // Orange
+          M: 0xffbb99  // Red
+        };
+        
+        if (spectralColors[this.visualOptions.spectralType]) {
+          this.light.color.setHex(spectralColors[this.visualOptions.spectralType]);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating light source:', error);
     }
   }
 
@@ -167,8 +276,8 @@ class CelestialObject {
       
       // Use proper path resolution for textures
       const cloudsPath = window.appPath ? 
-        `${window.appPath.assetsPath}/textures/${this.visualOptions.clouds.split('/').pop()}` : 
-        this.visualOptions.clouds;
+        `${window.appPath.assetsPath}/textures/${this.visualOptions.clouds}` : 
+        `assets/textures/${this.visualOptions.clouds}`;
       
       const cloudsTexture = textureLoader.load(cloudsPath);
       
@@ -204,21 +313,40 @@ class CelestialObject {
       if (!this.visualOptions.atmosphere) return;
       
       const atmosphereColor = new THREE.Color(this.visualOptions.atmosphere);
-      const atmosphereGeometry = new THREE.SphereGeometry(
+      
+      // Inner atmosphere (glow)
+      const innerAtmosphereGeometry = new THREE.SphereGeometry(
         this.getDisplayRadius() * 1.025, 
         64, 
         64
       );
       
-      const atmosphereMaterial = new THREE.MeshPhongMaterial({
+      const innerAtmosphereMaterial = new THREE.MeshPhongMaterial({
         color: atmosphereColor,
         transparent: true,
         opacity: 0.2,
         side: THREE.BackSide
       });
       
-      this.atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-      this.mesh.add(this.atmosphereMesh);
+      this.innerAtmosphereMesh = new THREE.Mesh(innerAtmosphereGeometry, innerAtmosphereMaterial);
+      this.mesh.add(this.innerAtmosphereMesh);
+      
+      // Outer atmosphere (subtle glow)
+      const outerAtmosphereGeometry = new THREE.SphereGeometry(
+        this.getDisplayRadius() * 1.1, 
+        32, 
+        32
+      );
+      
+      const outerAtmosphereMaterial = new THREE.MeshPhongMaterial({
+        color: atmosphereColor,
+        transparent: true,
+        opacity: 0.05,
+        side: THREE.BackSide
+      });
+      
+      this.outerAtmosphereMesh = new THREE.Mesh(outerAtmosphereGeometry, outerAtmosphereMaterial);
+      this.mesh.add(this.outerAtmosphereMesh);
     } catch (error) {
       console.error('Error creating atmosphere:', error);
     }
@@ -236,8 +364,8 @@ class CelestialObject {
       
       // Use proper path resolution for textures
       const ringsPath = window.appPath ? 
-        `${window.appPath.assetsPath}/textures/${this.visualOptions.rings.texture.split('/').pop()}` : 
-        this.visualOptions.rings.texture;
+        `${window.appPath.assetsPath}/textures/${this.visualOptions.rings.texture}` : 
+        `assets/textures/${this.visualOptions.rings.texture}`;
       
       const ringsTexture = textureLoader.load(ringsPath);
       
@@ -245,7 +373,7 @@ class CelestialObject {
       const innerRadius = this.getDisplayRadius() * this.visualOptions.rings.innerRadius;
       const outerRadius = this.getDisplayRadius() * this.visualOptions.rings.outerRadius;
       
-      const ringsGeometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
+      const ringsGeometry = new THREE.RingGeometry(innerRadius, outerRadius, 128);
       
       // Need to modify UVs to map texture correctly to ring
       const pos = ringsGeometry.attributes.position;
@@ -295,11 +423,31 @@ class CelestialObject {
   addStarGlow() {
     try {
       const glowGeometry = new THREE.SphereGeometry(this.getDisplayRadius() * 1.2, 32, 32);
+      
+      // Use different glow colors based on star type
+      let glowColor = 0xffff00; // Default yellow
+      
+      if (this.visualOptions.spectralType) {
+        const spectralColors = {
+          O: 0x9db4ff, // Blue
+          B: 0xaabfff, // Blue-white
+          A: 0xd8e2ff, // White
+          F: 0xfbf8ff, // White-yellow
+          G: 0xfff4e8, // Yellow (Sun)
+          K: 0xffd2a1, // Orange
+          M: 0xffcc6f  // Red
+        };
+        
+        if (spectralColors[this.visualOptions.spectralType]) {
+          glowColor = spectralColors[this.visualOptions.spectralType];
+        }
+      }
+      
       const glowMaterial = new THREE.ShaderMaterial({
         uniforms: {
           "c": { value: 0.1 },
           "p": { value: 1.2 },
-          glowColor: { value: new THREE.Color(0xffff00) },
+          glowColor: { value: new THREE.Color(glowColor) },
           viewVector: { value: new THREE.Vector3(0, 0, 0) }
         },
         vertexShader: `
@@ -329,9 +477,73 @@ class CelestialObject {
       
       this.glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
       this.mesh.add(this.glowMesh);
+      
+      // Add subtle pulsing effect for stars
+      this.pulseFactor = 0;
+      this.pulseDirection = 1;
     } catch (error) {
       console.error('Error creating star glow effect:', error);
       // Continue without glow effect if it fails
+    }
+  }
+  
+  /**
+   * Add surface detail to planets
+   */
+  addSurfaceDetail() {
+    try {
+      // Skip for stars
+      if (this.isStar) return;
+      
+      // Only add detail for planets with significant radius
+      if (this.radius < 1000) return;
+      
+      // Add normal mapping for terrain detail where appropriate
+      if (this.name) {
+        const planetNormalMaps = {
+          'earth': 'earth_normal.jpg',
+          'mars': 'mars_normal.jpg',
+          'moon': 'moon_normal.jpg',
+          'mercury': 'mercury_normal.jpg'
+        };
+        
+        const planetName = this.name.toLowerCase();
+        
+        if (planetNormalMaps[planetName] && this.mesh.material) {
+          const textureLoader = new THREE.TextureLoader();
+          const normalMapPath = window.appPath ? 
+            `${window.appPath.assetsPath}/textures/${planetNormalMaps[planetName]}` : 
+            `assets/textures/${planetNormalMaps[planetName]}`;
+          
+          textureLoader.load(normalMapPath, (normalMap) => {
+            // Convert PhongMaterial to StandardMaterial if needed
+            if (this.mesh.material.type === 'MeshPhongMaterial') {
+              // Save the current texture
+              const diffuseMap = this.mesh.material.map;
+              
+              // Create new standard material
+              const newMaterial = new THREE.MeshStandardMaterial({
+                map: diffuseMap,
+                normalMap: normalMap,
+                normalScale: new THREE.Vector2(1, 1),
+                roughness: 0.8,
+                metalness: 0.1
+              });
+              
+              // Replace the material
+              this.mesh.material.dispose();
+              this.mesh.material = newMaterial;
+            } else if (this.mesh.material.type === 'MeshStandardMaterial') {
+              // Just add the normal map to existing material
+              this.mesh.material.normalMap = normalMap;
+              this.mesh.material.normalScale = new THREE.Vector2(1, 1);
+              this.mesh.material.needsUpdate = true;
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error adding surface detail:', error);
     }
   }
 
@@ -378,6 +590,26 @@ class CelestialObject {
         const cloudsRotationAmount = this.cloudsRotationSpeed * dt * 10;
         this.cloudsMesh.rotation.y += cloudsRotationAmount;
       }
+      
+      // Update star pulsing effect if present
+      if (this.isStar && this.glowMesh) {
+        this.pulseFactor += 0.01 * this.pulseDirection;
+        if (this.pulseFactor > 1) {
+          this.pulseFactor = 1;
+          this.pulseDirection = -1;
+        } else if (this.pulseFactor < 0) {
+          this.pulseFactor = 0;
+          this.pulseDirection = 1;
+        }
+        
+        const scale = 1 + 0.05 * this.pulseFactor;
+        this.glowMesh.scale.set(scale, scale, scale);
+      }
+    }
+    
+    // Update light position if this is a star
+    if (this.light) {
+      this.light.position.copy(this.position);
     }
     
     // Clear acceleration for next calculation
@@ -407,10 +639,17 @@ class CelestialObject {
     if (!scene) return;
     
     try {
+      // Skip orbit lines for stars
+      if (this.isStar) return;
+      
       // Create geometry for orbit line
       const geometry = new THREE.BufferGeometry().setFromPoints(this.orbitPoints);
+      
+      // Use custom color for orbit line
+      const orbitColor = this.visualOptions.orbitColor || this.color;
+      
       const material = new THREE.LineBasicMaterial({ 
-        color: this.color, 
+        color: orbitColor, 
         opacity: 0.5, 
         transparent: true 
       });
@@ -465,11 +704,14 @@ class CelestialObject {
     
     return {
       name: this.name,
-      mass: `${(this.mass / 1e24).toFixed(2)} × 10²⁴ kg`,
+      mass: `${(this.mass / 1e24).toFixed(4)} × 10²⁴ kg`,
       radius: `${this.radius.toFixed(0)} km`,
       position: `X: ${this.position.x.toFixed(2)}, Y: ${this.position.y.toFixed(2)}, Z: ${this.position.z.toFixed(2)}`,
       velocity: `${speed.toFixed(2)} km/s`,
-      type: this.isStar ? 'Star' : 'Planet',
+      type: this.isStar ? (this.visualOptions.spectralType ? 
+                         `Star (Type ${this.visualOptions.spectralType})` : 
+                         'Star') : 
+                         (this.visualOptions.type || 'Planet'),
       // Additional details if available
       rotationPeriod: this.visualOptions.rotationPeriod ? 
         `${this.visualOptions.rotationPeriod.toFixed(2)} Earth days` : 
@@ -480,6 +722,22 @@ class CelestialObject {
       // Add habitability info if present
       habitability: this.visualOptions.habitability !== undefined ?
         this.visualOptions.habitability.toFixed(2) :
+        undefined,
+      // Add composition if available
+      composition: this.visualOptions.composition ?
+        Object.entries(this.visualOptions.composition)
+          .map(([element, percentage]) => `${element}: ${percentage}%`)
+          .join(', ') :
+        undefined,
+      // Add temperature if available
+      temperature: this.visualOptions.temperature ?
+        `${this.visualOptions.temperature.toFixed(0)} K` :
+        undefined,
+      // Add atmospheric info if available
+      atmosphere: this.visualOptions.atmosphereComposition ?
+        Object.entries(this.visualOptions.atmosphereComposition)
+          .map(([gas, percentage]) => `${gas}: ${percentage}%`)
+          .join(', ') :
         undefined
     };
   }
@@ -488,6 +746,11 @@ class CelestialObject {
    * Clean up resources
    */
   dispose() {
+    // Dispose of light
+    if (this.light && this.light.parent) {
+      this.light.parent.remove(this.light);
+    }
+    
     if (this.mesh) {
       // Dispose of geometry
       if (this.mesh.geometry) {
@@ -498,6 +761,9 @@ class CelestialObject {
       if (this.mesh.material) {
         if (this.mesh.material.map) {
           this.mesh.material.map.dispose();
+        }
+        if (this.mesh.material.normalMap) {
+          this.mesh.material.normalMap.dispose();
         }
         this.mesh.material.dispose();
       }
@@ -516,13 +782,22 @@ class CelestialObject {
       }
     }
     
-    // Clean up atmosphere mesh
-    if (this.atmosphereMesh) {
-      if (this.atmosphereMesh.geometry) {
-        this.atmosphereMesh.geometry.dispose();
+    // Clean up atmosphere meshes
+    if (this.innerAtmosphereMesh) {
+      if (this.innerAtmosphereMesh.geometry) {
+        this.innerAtmosphereMesh.geometry.dispose();
       }
-      if (this.atmosphereMesh.material) {
-        this.atmosphereMesh.material.dispose();
+      if (this.innerAtmosphereMesh.material) {
+        this.innerAtmosphereMesh.material.dispose();
+      }
+    }
+    
+    if (this.outerAtmosphereMesh) {
+      if (this.outerAtmosphereMesh.geometry) {
+        this.outerAtmosphereMesh.geometry.dispose();
+      }
+      if (this.outerAtmosphereMesh.material) {
+        this.outerAtmosphereMesh.material.dispose();
       }
     }
     
