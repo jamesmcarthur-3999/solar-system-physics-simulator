@@ -127,6 +127,7 @@ async function loadModules() {
       return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = url;
+        script.type = 'module';  // Use module type
         script.onload = () => resolve();
         script.onerror = (err) => reject(new Error(`Failed to load ${url}: ${err}`));
         document.head.appendChild(script);
@@ -142,9 +143,11 @@ async function loadModules() {
         }
         const scriptText = await response.text();
         
-        // Create a function in the global scope and execute the script
-        const moduleFunction = new Function(scriptText);
-        moduleFunction();
+        // Create a script element and use it to load the module text
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.textContent = scriptText;
+        document.head.appendChild(script);
         
         console.log(`Successfully loaded: ${url}`);
       } catch (error) {
