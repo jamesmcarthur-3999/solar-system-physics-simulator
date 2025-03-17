@@ -107,83 +107,157 @@ async function downloadAllTextures() {}
 // Initialize modules on window load
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Load modules
+    // Initialize constants first to ensure they're available
+    await loadConstants();
+    
+    // Then load the rest of the modules
     await loadModules();
     
     // Create application
     window.solarSystemApp = new SolarSystemApp();
   } catch (error) {
     console.error('Error initializing application:', error);
+    
+    // Display error to user
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+      <h2>Error Loading Application</h2>
+      <p>${error.message}</p>
+      <p>Please check the console for more details.</p>
+    `;
+    document.body.appendChild(errorDiv);
   }
 });
+
+/**
+ * Load constants first to ensure they're available to all modules
+ */
+async function loadConstants() {
+  try {
+    // Define constants directly if loading fails
+    window.CONSTANTS = window.CONSTANTS || {
+      G: 6.67430e-11,
+      AU: 149597870.7,
+      SECONDS_PER_DAY: 86400,
+      DISTANCE_SCALE: 1 / 1000,
+      SIZE_SCALE: 1 / 100,
+      ORBIT_SEGMENTS: 360,
+      DEFAULT_TIME_SCALE: 1,
+      ORBIT_COLORS: {
+        star: 0xFFFF00,
+        planet: 0x3399FF,
+        dwarf_planet: 0x99CCFF,
+        moon: 0xCCCCCC,
+        asteroid: 0x666666,
+        comet: 0x00FFFF
+      },
+      SUN_MASS: 1.989e30,
+      EARTH: {
+        mass: 5.972e24,
+        radius: 6371,
+        semiMajorAxis: 1.0,
+        orbitalPeriod: 365.256,
+        rotationPeriod: 23.9344694,
+      },
+      TEXTURE_PATH: '../assets/textures/'
+    };
+    
+    // Try to load constants from file
+    const response = await fetch('../utils/constants.js');
+    if (!response.ok) {
+      throw new Error(`Failed to load constants.js: ${response.status}`);
+    }
+    
+    // Load constants as a module script
+    const constantsScript = document.createElement('script');
+    constantsScript.type = 'text/javascript';
+    constantsScript.text = await response.text();
+    document.head.appendChild(constantsScript);
+    
+    console.log('Constants loaded successfully');
+    return true;
+  } catch (error) {
+    console.warn('Error loading constants:', error);
+    console.warn('Using default constants');
+    return false;
+  }
+}
 
 /**
  * Load all required modules
  */
 async function loadModules() {
   try {
-    // Define a helper to load JavaScript files as scripts
-    async function loadScript(url) {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = url;
-        script.type = 'module';  // Use module type
-        script.onload = () => resolve();
-        script.onerror = (err) => reject(new Error(`Failed to load ${url}: ${err}`));
-        document.head.appendChild(script);
-      });
-    }
-    
-    // Define a helper to load JavaScript files as text and evaluate
-    async function loadModuleText(url) {
+    // Define a helper to create module scripts
+    async function loadModuleScript(url) {
       try {
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
         const scriptText = await response.text();
         
-        // Fix any require() calls by replacing them with window references
-        const fixedScriptText = scriptText
-          .replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, function(match, path) {
-            // Simple module name mapping
+        // Create a script element for the module
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        
+        // Convert any require() calls to window references
+        const modifiedScript = scriptText
+          .replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (match, path) => {
             if (path === 'three') return 'window.THREE';
+            if (path.includes('three')) return 'window.THREE';
             if (path.includes('OrbitControls')) return 'window.OrbitControls';
             if (path.includes('TextGeometry')) return 'window.TextGeometry';
             if (path.includes('FontLoader')) return 'window.FontLoader';
-            return match; // Return original if no mapping found
+            
+            // For other modules, try to find them in window
+            const parts = path.split('/');
+            const moduleName = parts[parts.length - 1].replace('.js', '');
+            return `window.${moduleName}`;
           });
-          
-        // Create a script element and use it to load the modified code
-        const script = document.createElement('script');
-        script.textContent = fixedScriptText;
+        
+        script.text = modifiedScript;
         document.head.appendChild(script);
         
         console.log(`Successfully loaded: ${url}`);
+        return true;
       } catch (error) {
         console.error(`Error loading ${url}:`, error);
         throw error;
       }
     }
     
-    // Load each module
+    // Load each module in order with proper error handling
     console.log('Loading modules...');
     
-    // These need to be loaded in order of dependency
-    await loadModuleText('../utils/constants.js');
-    await loadModuleText('../physics/gravitySimulator.js');
-    await loadModuleText('../renderer/scene.js');
-    await loadModuleText('../renderer/cameraControls.js');
-    await loadModuleText('../renderer/gravityVisualizer.js');
-    await loadModuleText('../renderer/LagrangePointVisualizer.js');
-    await loadModuleText('./dialogs.js');
-    await loadModuleText('./infoPanel.js');
-    await loadModuleText('./objectHandlers.js');
-    await loadModuleText('../data/solarSystem.js');
-    await loadModuleText('./educationalFeatures.js');
-    await loadModuleText('./systemSelector.js');
-    await loadModuleText('./HelpSystem.js');
-    await loadModuleText('../utils/downloadTextures.js');
+    // Load these modules in order of dependency
+    const modules = [
+      '../physics/gravitySimulator.js',
+      '../renderer/scene.js',
+      '../renderer/cameraControls.js',
+      '../renderer/gravityVisualizer.js',
+      '../renderer/LagrangePointVisualizer.js',
+      './dialogs.js',
+      './infoPanel.js',
+      './objectHandlers.js',
+      '../data/solarSystem.js',
+      './educationalFeatures.js',
+      './systemSelector.js',
+      './HelpSystem.js',
+      '../utils/downloadTextures.js'
+    ];
+    
+    // Load modules sequentially
+    for (const modulePath of modules) {
+      try {
+        await loadModuleScript(modulePath);
+      } catch (error) {
+        console.error(`Failed to load module ${modulePath}:`, error);
+        throw new Error(`Failed to load module ${modulePath}: ${error.message}`);
+      }
+    }
     
     console.log('All modules loaded successfully');
   } catch (error) {
@@ -247,45 +321,81 @@ class SolarSystemApp {
    */
   initManagers() {
     try {
+      // Check that required classes exist
+      if (!window.SceneManager) {
+        throw new Error('SceneManager class not found');
+      }
+      
       // Create scene manager
-      this.sceneManager = new SceneManager(this.sceneContainer);
+      this.sceneManager = new window.SceneManager(this.sceneContainer);
       this.scene = this.sceneManager.scene;
       this.renderer = this.sceneManager.renderer;
       
       // Create camera controls
-      this.cameraControls = new CameraControls(
+      if (!window.CameraControls) {
+        throw new Error('CameraControls class not found');
+      }
+      this.cameraControls = new window.CameraControls(
         this.sceneManager.camera,
         this.sceneContainer
       );
       
       // Create physics simulator
-      this.physics = new GravitySimulator();
+      if (!window.GravitySimulator) {
+        throw new Error('GravitySimulator class not found');
+      }
+      this.physics = new window.GravitySimulator();
       
       // Create gravity visualizer
-      this.gravityVisualizer = new GravityVisualizer(this.scene);
+      if (!window.GravityVisualizer) {
+        throw new Error('GravityVisualizer class not found');
+      }
+      this.gravityVisualizer = new window.GravityVisualizer(this.scene);
       
       // Create Lagrange point visualizer
-      this.lagrangePointVisualizer = new LagrangePointVisualizer(this.scene);
+      if (!window.LagrangePointVisualizer) {
+        throw new Error('LagrangePointVisualizer class not found');
+      }
+      this.lagrangePointVisualizer = new window.LagrangePointVisualizer(this.scene);
       
       // Create dialogs manager
-      this.dialogs = new Dialogs();
+      if (!window.Dialogs) {
+        throw new Error('Dialogs class not found');
+      }
+      this.dialogs = new window.Dialogs();
       
       // Create info panel
-      this.infoPanelManager = new InfoPanel(this.objectProperties);
+      if (!window.InfoPanel) {
+        throw new Error('InfoPanel class not found');
+      }
+      this.infoPanelManager = new window.InfoPanel(this.objectProperties);
       
       // Create object handlers
-      this.objectHandlers = new ObjectHandlers(this);
+      if (!window.ObjectHandlers) {
+        throw new Error('ObjectHandlers class not found');
+      }
+      this.objectHandlers = new window.ObjectHandlers(this);
       
       // Create system selector
-      this.systemSelector = new SystemSelector(this);
+      if (!window.SystemSelector) {
+        throw new Error('SystemSelector class not found');
+      }
+      this.systemSelector = new window.SystemSelector(this);
       
       // Create educational features
-      this.educationalFeatures = new EducationalFeatures(this);
+      if (!window.EducationalFeatures) {
+        throw new Error('EducationalFeatures class not found');
+      }
+      this.educationalFeatures = new window.EducationalFeatures(this);
       
       // Create help system
-      this.helpSystem = new HelpSystem();
+      if (!window.HelpSystem) {
+        throw new Error('HelpSystem class not found');
+      }
+      this.helpSystem = new window.HelpSystem();
     } catch (error) {
       console.error('Error initializing managers:', error);
+      throw new Error(`Failed to initialize managers: ${error.message}`);
     }
   }
   
@@ -295,7 +405,11 @@ class SolarSystemApp {
   async ensureTextures() {
     try {
       // Download textures if they don't exist
-      await downloadAllTextures();
+      if (window.downloadAllTextures && typeof window.downloadAllTextures === 'function') {
+        await window.downloadAllTextures();
+      } else {
+        console.warn('downloadAllTextures function not found');
+      }
     } catch (error) {
       console.warn('Error ensuring textures:', error);
       // Continue with the application even if textures fail
@@ -528,7 +642,11 @@ class SolarSystemApp {
   createDefaultSystem() {
     try {
       // Get default system data
-      const defaultSystem = getDefaultSystem();
+      if (typeof window.getDefaultSystem !== 'function') {
+        throw new Error('getDefaultSystem function not found');
+      }
+      
+      const defaultSystem = window.getDefaultSystem();
       
       // Load objects into scene
       for (const objectData of defaultSystem.objects) {
@@ -549,6 +667,7 @@ class SolarSystemApp {
       this.updateLagrangeSystemOptions();
     } catch (error) {
       console.error('Error creating default system:', error);
+      throw new Error(`Failed to create default system: ${error.message}`);
     }
   }
   
@@ -561,16 +680,16 @@ class SolarSystemApp {
     let lastFpsUpdate = 0;
     
     const animate = (time) => {
-      // Calculate FPS
-      frameCount++;
-      if (time - lastFpsUpdate > 1000) {
-        const fps = Math.round(frameCount * 1000 / (time - lastFpsUpdate));
-        this.fpsCounter.textContent = `FPS: ${fps}`;
-        frameCount = 0;
-        lastFpsUpdate = time;
-      }
-      
       try {
+        // Calculate FPS
+        frameCount++;
+        if (time - lastFpsUpdate > 1000) {
+          const fps = Math.round(frameCount * 1000 / (time - lastFpsUpdate));
+          this.fpsCounter.textContent = `FPS: ${fps}`;
+          frameCount = 0;
+          lastFpsUpdate = time;
+        }
+        
         // Update physics
         if (!this.paused) {
           this.physics.update(time);
@@ -968,6 +1087,26 @@ class SolarSystemApp {
     }
   }
 }
+
+// Add CSS for error messages
+const style = document.createElement('style');
+style.textContent = `
+.error-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid #f00;
+  padding: 20px;
+  border-radius: 5px;
+  color: #f00;
+  text-align: center;
+  max-width: 80%;
+  z-index: 9999;
+}
+`;
+document.head.appendChild(style);
 
 // Clean up resources on window unload
 window.addEventListener('beforeunload', () => {
