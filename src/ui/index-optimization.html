@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+  <title>Solar System Simulator</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./performance-monitor.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Solar System Simulator</h1>
+      <div class="controls">
+        <button id="play-pause">Pause</button>
+        <div class="time-controls">
+          <button id="time-slower">-</button>
+          <span id="time-display">1 day/sec</span>
+          <button id="time-faster">+</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div id="scene-container"></div>
+      <div id="info-panel" class="hidden">
+        <h2 id="object-name">Select an object</h2>
+        <div id="object-properties"></div>
+      </div>
+      <div id="performance-container"></div>
+    </main>
+
+    <footer>
+      <button id="add-object">Add Object</button>
+      <button id="reset-view">Reset View</button>
+      <button id="save-system">Save System</button>
+      <button id="load-system">Load System</button>
+      <div class="status">
+        <span id="fps">FPS: 60</span>
+        <span id="body-count">Bodies: 9</span>
+      </div>
+    </footer>
+    
+    <div id="notification" class="notification" style="display: none;"></div>
+  </div>
+
+  <script src="./renderer.js" type="module"></script>
+</body>
+</html>
