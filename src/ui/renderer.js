@@ -9,6 +9,8 @@ const { InfoPanel } = require('./infoPanel');
 const { ObjectHandlers } = require('./objectHandlers');
 const { SolarSystem, getDefaultSystem } = require('../data/solarSystem');
 const { EducationalFeatures } = require('./educationalFeatures');
+const { SystemSelector } = require('./systemSelector');
+const { downloadAllTextures } = require('../utils/downloadTextures');
 
 /**
  * Main application class for Solar System Simulator
@@ -37,6 +39,9 @@ class SolarSystemApp {
     
     // Initialize managers
     this.initManagers();
+    
+    // Ensure textures are available
+    this.ensureTextures();
     
     // Set up event listeners
     this.setupEventListeners();
@@ -81,8 +86,24 @@ class SolarSystemApp {
     // Create object handlers
     this.objectHandlers = new ObjectHandlers(this);
     
+    // Create system selector
+    this.systemSelector = new SystemSelector(this);
+    
     // Create educational features
     this.educationalFeatures = new EducationalFeatures(this);
+  }
+  
+  /**
+   * Ensure that textures are available
+   */
+  async ensureTextures() {
+    try {
+      // Download textures if they don't exist
+      await downloadAllTextures();
+    } catch (error) {
+      console.warn('Error ensuring textures:', error);
+      // Continue with the application even if textures fail
+    }
   }
   
   /**
@@ -111,6 +132,37 @@ class SolarSystemApp {
     // Handle add object button
     this.addNewObject = () => this.handleAddObject();
     this.addObjectButton.addEventListener('click', this.addNewObject);
+    
+    // Handle keyboard shortcuts
+    this.keydownHandler = (e) => this.handleKeydown(e);
+    window.addEventListener('keydown', this.keydownHandler);
+  }
+  
+  /**
+   * Handle keyboard shortcuts
+   * @param {KeyboardEvent} e - The keyboard event
+   */
+  handleKeydown(e) {
+    // Space bar toggles play/pause
+    if (e.code === 'Space') {
+      this.handlePlayPause();
+      e.preventDefault();
+    }
+    
+    // Arrow up/down adjusts time scale
+    if (e.code === 'ArrowUp') {
+      this.handleIncreaseTimeScale();
+      e.preventDefault();
+    } else if (e.code === 'ArrowDown') {
+      this.handleDecreaseTimeScale();
+      e.preventDefault();
+    }
+    
+    // 'R' key resets view
+    if (e.code === 'KeyR') {
+      this.handleResetView();
+      e.preventDefault();
+    }
   }
   
   /**
@@ -125,6 +177,11 @@ class SolarSystemApp {
       const object = this.objectHandlers.createCelestialObject(objectData);
       this.objects.push(object);
       this.physics.addObject(object);
+      
+      // Add light to scene if this is a star
+      if (object.light) {
+        this.scene.add(object.light);
+      }
     }
     
     // Update body count
@@ -363,12 +420,18 @@ class SolarSystemApp {
       
       // Remove event listeners
       window.removeEventListener('resize', this.resizeHandler);
+      window.removeEventListener('keydown', this.keydownHandler);
       
       if (this.playPauseButton) this.playPauseButton.removeEventListener('click', this.togglePlayPause);
       if (this.timeSlowerButton) this.timeSlowerButton.removeEventListener('click', this.decreaseTimeScale);
       if (this.timeFasterButton) this.timeFasterButton.removeEventListener('click', this.increaseTimeScale);
       if (this.resetViewButton) this.resetViewButton.removeEventListener('click', this.resetView);
       if (this.addObjectButton) this.addObjectButton.removeEventListener('click', this.addNewObject);
+      
+      // Dispose of system selector
+      if (this.systemSelector) {
+        this.systemSelector.dispose();
+      }
       
       // Dispose educational features
       if (this.educationalFeatures) {
@@ -403,6 +466,11 @@ class SolarSystemApp {
               object.mesh.material.dispose();
             }
           }
+        }
+        
+        // Remove light from scene if this is a star
+        if (object.light) {
+          this.scene.remove(object.light);
         }
         
         // Dispose of orbit line
