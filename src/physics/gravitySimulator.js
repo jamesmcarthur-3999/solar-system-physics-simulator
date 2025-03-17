@@ -4,13 +4,14 @@ class GravitySimulator {
   constructor() {
     // Internal state
     this.objects = [];
-    this.timeScale = window.CONSTANTS.DEFAULT_TIME_SCALE; // Days per second
+    this.timeScale = window.CONSTANTS ? window.CONSTANTS.DEFAULT_TIME_SCALE : 1; // Days per second
     this.paused = false;
     this.lastTime = 0;
     
     // Physics settings
-    this.G = window.CONSTANTS.G;
-    this.secondsPerDay = window.CONSTANTS.SECONDS_PER_DAY;
+    this.G = window.CONSTANTS ? window.CONSTANTS.G : 6.67430e-11;
+    this.secondsPerDay = window.CONSTANTS ? window.CONSTANTS.SECONDS_PER_DAY : 86400;
+    this.collisionsEnabled = false; // Disable collisions initially until fixed
   }
   
   /**
@@ -18,6 +19,13 @@ class GravitySimulator {
    * @param {Object} object - The object to add
    */
   addObject(object) {
+    // Add getDisplayRadius method if it doesn't exist
+    if (!object.getDisplayRadius) {
+      object.getDisplayRadius = function() {
+        return this.radius || 1;
+      };
+    }
+    
     this.objects.push(object);
   }
   
@@ -89,6 +97,66 @@ class GravitySimulator {
   }
   
   /**
+   * Check for collisions between objects
+   */
+  checkCollisions() {
+    if (!this.collisionsEnabled) return;
+    
+    try {
+      // Check each pair of objects
+      for (let i = 0; i < this.objects.length; i++) {
+        const objA = this.objects[i];
+        
+        for (let j = i + 1; j < this.objects.length; j++) {
+          const objB = this.objects[j];
+          
+          try {
+            // Get object names for logging
+            const nameA = objA.name || 'Object ' + i;
+            const nameB = objB.name || 'Object ' + j;
+            
+            // Calculate distance between objects
+            const dx = objB.position.x - objA.position.x;
+            const dy = objB.position.y - objA.position.y;
+            const dz = objB.position.z - objA.position.z;
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            
+            // Get object radii
+            const radiusA = objA.getDisplayRadius ? objA.getDisplayRadius() : (objA.radius || 1);
+            const radiusB = objB.getDisplayRadius ? objB.getDisplayRadius() : (objB.radius || 1);
+            
+            // Check if objects are colliding
+            if (distance < radiusA + radiusB) {
+              console.log(`Collision detected between ${nameA} and ${nameB}`);
+              
+              // Handle collision (simple elastic collision)
+              // In a real simulation, you'd need more complex physics for celestial body collisions
+              
+              // For now, just adjust positions to prevent overlap
+              const overlap = (radiusA + radiusB) - distance;
+              const adjustX = (dx / distance) * overlap * 0.5;
+              const adjustY = (dy / distance) * overlap * 0.5;
+              const adjustZ = (dz / distance) * overlap * 0.5;
+              
+              objA.position.x -= adjustX;
+              objA.position.y -= adjustY;
+              objA.position.z -= adjustZ;
+              
+              objB.position.x += adjustX;
+              objB.position.y += adjustY;
+              objB.position.z += adjustZ;
+            }
+          } catch (error) {
+            console.error(`Error checking collision between ${objA.name || 'Unknown'} and ${objB.name || 'Unknown'}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in collision detection:', error);
+    }
+  }
+  
+  /**
    * Update all object positions based on gravitational forces
    * @param {Number} time - Current time in milliseconds
    */
@@ -109,8 +177,14 @@ class GravitySimulator {
     for (let i = 0; i < this.objects.length; i++) {
       const obj1 = this.objects[i];
       
-      // Reset acceleration
-      obj1.acceleration = { x: 0, y: 0, z: 0 };
+      // Initialize acceleration if not present
+      if (!obj1.acceleration) {
+        obj1.acceleration = { x: 0, y: 0, z: 0 };
+      } else {
+        obj1.acceleration.x = 0;
+        obj1.acceleration.y = 0;
+        obj1.acceleration.z = 0;
+      }
       
       // Sum forces from all other objects
       for (let j = 0; j < this.objects.length; j++) {
@@ -133,6 +207,11 @@ class GravitySimulator {
       // Skip objects with fixed positions
       if (obj.fixed) continue;
       
+      // Initialize velocity if not present
+      if (!obj.velocity) {
+        obj.velocity = { x: 0, y: 0, z: 0 };
+      }
+      
       // Update velocity using acceleration
       obj.velocity.x += obj.acceleration.x * scaledDeltaTime;
       obj.velocity.y += obj.acceleration.y * scaledDeltaTime;
@@ -153,6 +232,9 @@ class GravitySimulator {
         }
       }
     }
+    
+    // Check for collisions
+    this.checkCollisions();
   }
   
   /**
