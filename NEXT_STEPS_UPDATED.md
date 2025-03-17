@@ -15,6 +15,7 @@ We've made significant progress on the project by implementing several major fea
    - Implemented realistic lighting effects for stars
    - Added atmospheric effects for planets
    - Enhanced object appearance with more realistic materials
+   - Implemented Lagrange point visualization ✅
 
 3. **User Experience Improvements** ✅:
    - Added system selector for switching between configurations
@@ -22,30 +23,62 @@ We've made significant progress on the project by implementing several major fea
    - Enhanced camera controls and navigation
    - Provided richer information about celestial bodies
 
-4. **Documentation Enhancements** ✅:
+4. **Help System Implementation** ✅:
+   - Created comprehensive help panel with searchable topics
+   - Implemented context-sensitive help tooltips
+   - Added keyboard shortcuts documentation
+   - Integrated help with educational features
+
+5. **Documentation Enhancements** ✅:
    - Updated README with comprehensive information
    - Added detailed testing documentation
    - Created coding style guide
    - Updated project status documentation
 
+## Completed Features
+
+### Lagrange Point Visualization ✅
+
+We have successfully implemented the Lagrange Point Visualization feature:
+
+- Created `LagrangePointVisualizer` class that calculates and displays all five Lagrange points (L1-L5) for any two-body system
+- Added UI controls allowing users to select different two-body systems (e.g., Sun-Earth, Sun-Jupiter)
+- Integrated with the educational menu for easy access
+- Added information panels explaining the science behind Lagrange points
+- Implemented proper scaling based on the distance between the selected bodies
+- Added tooltips and help documentation for using the feature
+
+### Help System ✅
+
+We have successfully implemented the comprehensive Help System:
+
+- Created `HelpSystem` class providing a central place for user assistance
+- Implemented searchable help topics organized by categories
+- Added context-sensitive tooltips for UI elements
+- Created detailed documentation for all major features
+- Provided keyboard shortcuts reference
+- Integrated help content with Lagrange Points and other educational features
+- Added "H" keyboard shortcut to quickly access the Help Panel
+
 ## Next Priorities
 
 1. **Educational Content Enhancement**:
    - Add more guided tours for specific astronomical concepts
-   - Create educational information panels for additional topics
+   - Create additional educational information panels for new topics
    - Implement interactive quizzes or challenges
+   - Add more comprehensive Lagrange point tutorials
 
 2. **Advanced Visual Effects**:
-   - Implement Lagrange point visualization
    - Add gravitational lensing effects visualization
    - Enhance star rendering with corona effects
    - Implement more advanced atmospheric effects
+   - Add orbital path prediction visualization
 
-3. **Help System Development**:
-   - Create comprehensive user manual
-   - Implement in-app tutorial system
-   - Add context-sensitive help throughout the UI
-   - Create quick reference guide for keyboard shortcuts
+3. **Advanced Features**:
+   - Implement spacecraft trajectory planning
+   - Add support for binary star systems
+   - Create tools for exoplanet system simulation
+   - Implement celestial event prediction and visualization
 
 4. **Deployment Preparation**:
    - Configure cross-platform builds
@@ -67,478 +100,422 @@ We've made significant progress on the project by implementing several major fea
    - Add worker threads for background calculations
    - Optimize memory usage for long-running simulations
 
-3. **Advanced Features**:
-   - Implement spacecraft trajectory planning
-   - Add support for binary star systems
-   - Create tools for exoplanet system simulation
-   - Implement celestial event prediction and visualization
+## Implementation Guide for Orbital Path Prediction
 
-## Implementation Guide for Lagrange Point Visualization
-
-Lagrange points are special positions in space where a small object affected by gravity can maintain a stable position relative to two larger objects (like the Earth and Sun). Visualizing these points would be valuable for educational purposes.
+The next feature to implement is a visualization tool for orbital path prediction, which would allow users to see the future path of celestial bodies based on current physics:
 
 ```javascript
-// LagrangePointVisualizer.js
-class LagrangePointVisualizer {
-  constructor(scene) {
-    this.scene = scene;
-    this.lagrangePoints = [];
-    this.visible = false;
-  }
-
+// OrbitPredictor.js
+class OrbitPredictor {
   /**
-   * Calculate and visualize Lagrange points for a two-body system
-   * @param {CelestialObject} primaryBody - Larger body (e.g., Sun)
-   * @param {CelestialObject} secondaryBody - Smaller body (e.g., Earth)
+   * Creates a new orbit predictor
+   * @param {Scene} scene - Three.js scene to add visualization to
+   * @param {GravitySimulator} physicsEngine - Reference to the physics engine
    */
-  calculateLagrangePoints(primaryBody, secondaryBody) {
-    // Clear existing points
-    this.clearPoints();
-    
-    // Calculate mass ratio
-    const mu = secondaryBody.mass / (primaryBody.mass + secondaryBody.mass);
-    
-    // Calculate distance between bodies
-    const bodyVector = new THREE.Vector3().subVectors(
-      secondaryBody.position,
-      primaryBody.position
-    );
-    const r = bodyVector.length();
-    
-    // Calculate unit vectors
-    const unitRadial = bodyVector.clone().normalize();
-    const unitPerpendicular = new THREE.Vector3(-unitRadial.y, unitRadial.x, 0).normalize();
-    
-    // Calculate L1 (between the two bodies)
-    const l1Distance = r * (1 - Math.pow(mu/3, 1/3));
-    const l1Position = primaryBody.position.clone().add(
-      unitRadial.clone().multiplyScalar(l1Distance)
-    );
-    
-    // Calculate L2 (beyond the secondary body)
-    const l2Distance = r * (1 + Math.pow(mu/3, 1/3));
-    const l2Position = primaryBody.position.clone().add(
-      unitRadial.clone().multiplyScalar(l2Distance)
-    );
-    
-    // Calculate L3 (behind the primary body)
-    const l3Distance = r * (1 + 5/12 * mu);
-    const l3Position = primaryBody.position.clone().add(
-      unitRadial.clone().multiplyScalar(-l3Distance)
-    );
-    
-    // Calculate L4 (60° ahead of secondary body)
-    const l4Position = primaryBody.position.clone()
-      .add(unitRadial.clone().multiplyScalar(r * 0.5))
-      .add(unitPerpendicular.clone().multiplyScalar(r * Math.sqrt(3)/2));
-    
-    // Calculate L5 (60° behind secondary body)
-    const l5Position = primaryBody.position.clone()
-      .add(unitRadial.clone().multiplyScalar(r * 0.5))
-      .add(unitPerpendicular.clone().multiplyScalar(-r * Math.sqrt(3)/2));
-    
-    // Create visualization for each point
-    this.createPointVisualization(l1Position, 'L1');
-    this.createPointVisualization(l2Position, 'L2');
-    this.createPointVisualization(l3Position, 'L3');
-    this.createPointVisualization(l4Position, 'L4');
-    this.createPointVisualization(l5Position, 'L5');
-    
-    // Store references to primary and secondary bodies
-    this.primaryBody = primaryBody;
-    this.secondaryBody = secondaryBody;
+  constructor(scene, physicsEngine) {
+    this.scene = scene;
+    this.physics = physicsEngine;
+    this.predictedOrbits = new Map();
+    this.visible = false;
+    this.predictionSteps = 1000; // Number of steps to predict
+    this.predictionTimeStep = 0.1; // Time step for prediction in days
   }
   
   /**
-   * Create visual representation of a Lagrange point
-   * @param {THREE.Vector3} position - Position of the Lagrange point
-   * @param {String} label - Label for the point (L1-L5)
+   * Calculate and visualize the predicted orbit for a celestial object
+   * @param {CelestialObject} object - The object to predict orbit for
    */
-  createPointVisualization(position, label) {
-    // Create point geometry
-    const geometry = new THREE.SphereGeometry(0.05, 16, 16);
-    const material = new THREE.MeshBasicMaterial({ 
+  predictOrbit(object) {
+    // Clear existing prediction for this object
+    this.clearOrbitPrediction(object.id);
+    
+    // Clone the physics state
+    const objectsClone = this.clonePhysicsState();
+    const targetObject = objectsClone.find(obj => obj.id === object.id);
+    
+    if (!targetObject) return;
+    
+    // Points for the orbit line
+    const points = [];
+    points.push(new THREE.Vector3().copy(targetObject.position));
+    
+    // Run the simulation forward to predict the orbit
+    for (let i = 0; i < this.predictionSteps; i++) {
+      // Apply gravity forces between all objects
+      this.stepPhysicsSimulation(objectsClone, this.predictionTimeStep);
+      
+      // Add the new position to the points array
+      points.push(new THREE.Vector3().copy(targetObject.position));
+    }
+    
+    // Create a line from the points
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
       color: 0x00ffff,
-      transparent: true,
-      opacity: 0.8
+      opacity: 0.7,
+      transparent: true
     });
     
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
-    
-    // Add text label
-    const textGeometry = new THREE.TextGeometry(label, {
-      font: new THREE.Font(), // Need to load font
-      size: 0.1,
-      height: 0.01
-    });
-    
-    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-    textMesh.position.copy(position).add(new THREE.Vector3(0.1, 0.1, 0));
+    const orbitLine = new THREE.Line(geometry, material);
     
     // Add to scene if visible
     if (this.visible) {
-      this.scene.add(mesh);
-      this.scene.add(textMesh);
+      this.scene.add(orbitLine);
     }
     
     // Store reference
-    this.lagrangePoints.push({
-      point: mesh,
-      label: textMesh,
-      position: position.clone(),
-      type: label
+    this.predictedOrbits.set(object.id, {
+      object: object,
+      line: orbitLine
+    });
+    
+    return orbitLine;
+  }
+  
+  /**
+   * Clone the current state of all physics objects
+   * @returns {Array} - Cloned array of physics objects
+   */
+  clonePhysicsState() {
+    return this.physics.getObjects().map(obj => ({
+      id: obj.id,
+      position: new THREE.Vector3().copy(obj.position),
+      velocity: new THREE.Vector3().copy(obj.velocity),
+      mass: obj.mass
+    }));
+  }
+  
+  /**
+   * Step the physics simulation forward for the cloned objects
+   * @param {Array} objects - Array of physics objects
+   * @param {Number} timeStep - Time step to simulate
+   */
+  stepPhysicsSimulation(objects, timeStep) {
+    // Calculate forces
+    for (let i = 0; i < objects.length; i++) {
+      const objA = objects[i];
+      objA.acceleration = new THREE.Vector3(0, 0, 0);
+      
+      for (let j = 0; j < objects.length; j++) {
+        if (i === j) continue;
+        
+        const objB = objects[j];
+        const direction = new THREE.Vector3().subVectors(objB.position, objA.position);
+        const distance = direction.length();
+        
+        // Skip if objects are too close (would cause huge forces)
+        if (distance < 0.1) continue;
+        
+        // Calculate gravitational force: F = G * (m1 * m2) / r^2
+        const forceMagnitude = 6.67430e-11 * objA.mass * objB.mass / (distance * distance);
+        
+        // Force direction is normalized distance vector
+        const force = direction.normalize().multiplyScalar(forceMagnitude);
+        
+        // F = ma, so a = F/m
+        const acceleration = force.divideScalar(objA.mass);
+        objA.acceleration.add(acceleration);
+      }
+    }
+    
+    // Update positions based on calculated forces
+    objects.forEach(obj => {
+      // Update velocity: v = v0 + a*t
+      obj.velocity.add(obj.acceleration.clone().multiplyScalar(timeStep));
+      
+      // Update position: p = p0 + v*t
+      obj.position.add(obj.velocity.clone().multiplyScalar(timeStep));
     });
   }
   
   /**
-   * Update Lagrange point positions when bodies move
+   * Clear the orbit prediction for a specific object
+   * @param {String} objectId - ID of the object
    */
-  update() {
-    if (!this.primaryBody || !this.secondaryBody) return;
+  clearOrbitPrediction(objectId) {
+    const prediction = this.predictedOrbits.get(objectId);
     
-    // Recalculate if bodies have moved significantly
-    const currentVector = new THREE.Vector3().subVectors(
-      this.secondaryBody.position,
-      this.primaryBody.position
-    );
-    
-    // Check if recalculation is needed
-    // For performance, only recalculate periodically or when significant movement
-    
-    this.calculateLagrangePoints(this.primaryBody, this.secondaryBody);
+    if (prediction) {
+      this.scene.remove(prediction.line);
+      
+      if (prediction.line.geometry) {
+        prediction.line.geometry.dispose();
+      }
+      
+      if (prediction.line.material) {
+        prediction.line.material.dispose();
+      }
+      
+      this.predictedOrbits.delete(objectId);
+    }
   }
   
   /**
-   * Set visibility of Lagrange points
-   * @param {Boolean} visible - Whether points should be visible
+   * Set visibility of all orbit predictions
+   * @param {Boolean} visible - Whether predictions should be visible
    */
   setVisible(visible) {
     this.visible = visible;
     
-    this.lagrangePoints.forEach(point => {
+    this.predictedOrbits.forEach(prediction => {
       if (visible) {
-        this.scene.add(point.point);
-        this.scene.add(point.label);
+        this.scene.add(prediction.line);
       } else {
-        this.scene.remove(point.point);
-        this.scene.remove(point.label);
+        this.scene.remove(prediction.line);
       }
     });
   }
   
   /**
-   * Clear all Lagrange point visualizations
+   * Update predictions when objects move
    */
-  clearPoints() {
-    this.lagrangePoints.forEach(point => {
-      this.scene.remove(point.point);
-      this.scene.remove(point.label);
-      
-      if (point.point.geometry) point.point.geometry.dispose();
-      if (point.point.material) point.point.material.dispose();
-      
-      if (point.label.geometry) point.label.geometry.dispose();
-      if (point.label.material) point.label.material.dispose();
+  update() {
+    // Only update periodically for performance
+    // Could be triggered by significant changes in the system
+    this.predictedOrbits.forEach((prediction, objectId) => {
+      this.predictOrbit(prediction.object);
     });
-    
-    this.lagrangePoints = [];
+  }
+  
+  /**
+   * Predict orbits for all objects in the system
+   */
+  predictAllOrbits() {
+    this.physics.getObjects().forEach(object => {
+      this.predictOrbit(object);
+    });
   }
   
   /**
    * Clean up resources
    */
   dispose() {
-    this.clearPoints();
-    this.primaryBody = null;
-    this.secondaryBody = null;
+    this.predictedOrbits.forEach((prediction, objectId) => {
+      this.clearOrbitPrediction(objectId);
+    });
+    
+    this.predictedOrbits.clear();
   }
 }
 
-module.exports = LagrangePointVisualizer;
+module.exports = OrbitPredictor;
 ```
 
-## Implementation Guide for Help System
+## Implementation Guide for Advanced Atmospheric Effects
 
-The help system should provide context-sensitive assistance to users. Here's a sample implementation:
+To enhance the visual fidelity of planets, we can implement more sophisticated atmospheric effects:
 
 ```javascript
-// HelpSystem.js
-class HelpSystem {
-  constructor() {
-    this.helpTopics = new Map();
-    this.activeTooltips = [];
-    this.createHelpPanel();
+// AtmosphereEffect.js
+class AtmosphereEffect {
+  /**
+   * Creates a new atmosphere effect for a celestial body
+   * @param {CelestialObject} celestialObject - The object to add atmosphere to
+   */
+  constructor(celestialObject) {
+    this.object = celestialObject;
+    this.atmosphereMesh = null;
+    this.createAtmosphere();
   }
   
   /**
-   * Create the help panel UI
+   * Create the atmosphere mesh
    */
-  createHelpPanel() {
-    this.panel = document.createElement('div');
-    this.panel.className = 'help-panel';
+  createAtmosphere() {
+    // Get planet properties
+    const radius = this.object.radius;
+    const atmosphereThickness = this.getAtmosphereThickness();
+    const atmosphereColor = this.getAtmosphereColor();
     
-    const header = document.createElement('div');
-    header.className = 'help-panel-header';
+    // Create geometry slightly larger than the planet
+    const geometry = new THREE.SphereGeometry(
+      radius * (1 + atmosphereThickness),
+      32, 32
+    );
     
-    const title = document.createElement('h3');
-    title.textContent = 'Help';
-    
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '×';
-    closeButton.addEventListener('click', () => this.hidePanel());
-    
-    header.appendChild(title);
-    header.appendChild(closeButton);
-    
-    this.content = document.createElement('div');
-    this.content.className = 'help-panel-content';
-    
-    this.searchBox = document.createElement('input');
-    this.searchBox.type = 'text';
-    this.searchBox.placeholder = 'Search help topics...';
-    this.searchBox.className = 'help-search-box';
-    this.searchBox.addEventListener('input', () => this.searchTopics());
-    
-    this.topicsList = document.createElement('div');
-    this.topicsList.className = 'help-topics-list';
-    
-    this.topicContent = document.createElement('div');
-    this.topicContent.className = 'help-topic-content';
-    
-    this.panel.appendChild(header);
-    this.panel.appendChild(this.searchBox);
-    this.panel.appendChild(this.topicsList);
-    this.panel.appendChild(this.topicContent);
-    
-    document.body.appendChild(this.panel);
-    this.panel.style.display = 'none';
-  }
-  
-  /**
-   * Register a help topic
-   * @param {String} id - Unique identifier for the topic
-   * @param {String} title - Display title for the topic
-   * @param {String} content - HTML content for the topic
-   * @param {Array} keywords - Keywords for search
-   * @param {String} category - Category for grouping
-   */
-  registerTopic(id, title, content, keywords = [], category = 'General') {
-    this.helpTopics.set(id, {
-      id,
-      title,
-      content,
-      keywords,
-      category
+    // Create shader material for the atmosphere
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        planetRadius: { value: radius },
+        atmosphereRadius: { value: radius * (1 + atmosphereThickness) },
+        atmosphereColor: { value: new THREE.Color(atmosphereColor) },
+        sunDirection: { value: new THREE.Vector3(1, 0, 0) }
+      },
+      vertexShader: this.getVertexShader(),
+      fragmentShader: this.getFragmentShader(),
+      transparent: true,
+      side: THREE.BackSide
     });
     
-    this.rebuildTopicsList();
+    // Create mesh
+    this.atmosphereMesh = new THREE.Mesh(geometry, material);
+    
+    // Position relative to the planet
+    this.updatePosition();
+    
+    // Add to scene
+    if (this.object.mesh && this.object.mesh.parent) {
+      this.object.mesh.parent.add(this.atmosphereMesh);
+    }
   }
   
   /**
-   * Rebuild the topics list
+   * Get the appropriate atmosphere thickness based on planet type
+   * @returns {Number} - Thickness as a fraction of planet radius
    */
-  rebuildTopicsList() {
-    this.topicsList.innerHTML = '';
+  getAtmosphereThickness() {
+    const type = this.object.type;
     
-    // Group by category
-    const categories = new Map();
+    // Different planets have different atmosphere thicknesses
+    switch (type) {
+      case 'earth-like':
+        return 0.025;
+      case 'gas-giant':
+        return 0.15;
+      case 'ice-giant':
+        return 0.08;
+      default:
+        return 0.02;
+    }
+  }
+  
+  /**
+   * Get the appropriate atmosphere color based on planet type
+   * @returns {Number} - Hexadecimal color value
+   */
+  getAtmosphereColor() {
+    const type = this.object.type;
     
-    this.helpTopics.forEach(topic => {
-      if (!categories.has(topic.category)) {
-        categories.set(topic.category, []);
-      }
-      
-      categories.get(topic.category).push(topic);
-    });
+    // Different planets have different atmosphere colors
+    switch (type) {
+      case 'earth-like':
+        return 0x6688ff; // Blue-ish
+      case 'gas-giant':
+        return 0xffcc88; // Yellow-ish
+      case 'ice-giant':
+        return 0x88ccff; // Cyan-ish
+      default:
+        return 0xffffff;
+    }
+  }
+  
+  /**
+   * Update the position to match the planet
+   */
+  updatePosition() {
+    if (this.atmosphereMesh && this.object.position) {
+      this.atmosphereMesh.position.copy(this.object.position);
+    }
+  }
+  
+  /**
+   * Update the atmosphere effect
+   * @param {THREE.Vector3} sunPosition - Position of the sun
+   */
+  update(sunPosition) {
+    if (!this.atmosphereMesh) return;
     
-    // Create category groups
-    categories.forEach((topics, category) => {
-      const categoryEl = document.createElement('div');
-      categoryEl.className = 'help-category';
+    // Update position
+    this.updatePosition();
+    
+    // Update sun direction for shader
+    if (this.object.position && sunPosition) {
+      const sunDirection = new THREE.Vector3()
+        .subVectors(sunPosition, this.object.position)
+        .normalize();
       
-      const categoryTitle = document.createElement('h4');
-      categoryTitle.textContent = category;
-      categoryEl.appendChild(categoryTitle);
+      this.atmosphereMesh.material.uniforms.sunDirection.value.copy(sunDirection);
+    }
+  }
+  
+  /**
+   * Get the vertex shader code
+   * @returns {String} - Vertex shader code
+   */
+  getVertexShader() {
+    return `
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
       
-      const topicsList = document.createElement('ul');
-      
-      topics.forEach(topic => {
-        const topicItem = document.createElement('li');
-        const topicLink = document.createElement('a');
-        topicLink.href = '#';
-        topicLink.textContent = topic.title;
-        topicLink.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.showTopic(topic.id);
-        });
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
         
-        topicItem.appendChild(topicLink);
-        topicsList.appendChild(topicItem);
-      });
-      
-      categoryEl.appendChild(topicsList);
-      this.topicsList.appendChild(categoryEl);
-    });
-  }
-  
-  /**
-   * Search topics by keyword
-   */
-  searchTopics() {
-    const query = this.searchBox.value.toLowerCase();
-    
-    if (!query) {
-      this.rebuildTopicsList();
-      return;
-    }
-    
-    // Filter topics by search query
-    const matchingTopics = Array.from(this.helpTopics.values())
-      .filter(topic => {
-        return topic.title.toLowerCase().includes(query) ||
-               topic.keywords.some(keyword => keyword.toLowerCase().includes(query)) ||
-               topic.content.toLowerCase().includes(query);
-      });
-    
-    // Show search results
-    this.topicsList.innerHTML = '';
-    
-    const resultsList = document.createElement('ul');
-    
-    matchingTopics.forEach(topic => {
-      const topicItem = document.createElement('li');
-      const topicLink = document.createElement('a');
-      topicLink.href = '#';
-      topicLink.textContent = topic.title;
-      topicLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.showTopic(topic.id);
-      });
-      
-      topicItem.appendChild(topicLink);
-      resultsList.appendChild(topicItem);
-    });
-    
-    this.topicsList.appendChild(resultsList);
-  }
-  
-  /**
-   * Show a specific help topic
-   * @param {String} id - ID of the topic to show
-   */
-  showTopic(id) {
-    const topic = this.helpTopics.get(id);
-    
-    if (!topic) return;
-    
-    this.topicContent.innerHTML = '';
-    
-    const title = document.createElement('h3');
-    title.textContent = topic.title;
-    
-    const content = document.createElement('div');
-    content.innerHTML = topic.content;
-    
-    this.topicContent.appendChild(title);
-    this.topicContent.appendChild(content);
-    
-    // Show the panel if it's not already visible
-    this.showPanel();
-  }
-  
-  /**
-   * Show the help panel
-   */
-  showPanel() {
-    this.panel.style.display = 'block';
-  }
-  
-  /**
-   * Hide the help panel
-   */
-  hidePanel() {
-    this.panel.style.display = 'none';
-  }
-  
-  /**
-   * Show context-sensitive help tooltip
-   * @param {String} elementId - ID of the element to attach tooltip to
-   * @param {String} content - Content for the tooltip
-   */
-  showTooltip(elementId, content) {
-    const element = document.getElementById(elementId);
-    
-    if (!element) return;
-    
-    const tooltip = document.createElement('div');
-    tooltip.className = 'help-tooltip';
-    tooltip.innerHTML = content;
-    
-    const rect = element.getBoundingClientRect();
-    
-    tooltip.style.position = 'absolute';
-    tooltip.style.left = `${rect.right + 10}px`;
-    tooltip.style.top = `${rect.top}px`;
-    
-    document.body.appendChild(tooltip);
-    
-    this.activeTooltips.push(tooltip);
-    
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-      this.hideTooltip(tooltip);
-    }, 5000);
-  }
-  
-  /**
-   * Hide a specific tooltip
-   * @param {HTMLElement} tooltip - Tooltip element to hide
-   */
-  hideTooltip(tooltip) {
-    if (tooltip && tooltip.parentNode) {
-      tooltip.parentNode.removeChild(tooltip);
-      this.activeTooltips = this.activeTooltips.filter(t => t !== tooltip);
-    }
-  }
-  
-  /**
-   * Hide all tooltips
-   */
-  hideAllTooltips() {
-    this.activeTooltips.forEach(tooltip => {
-      if (tooltip.parentNode) {
-        tooltip.parentNode.removeChild(tooltip);
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        
+        gl_Position = projectionMatrix * viewMatrix * worldPosition;
       }
-    });
-    
-    this.activeTooltips = [];
+    `;
+  }
+  
+  /**
+   * Get the fragment shader code
+   * @returns {String} - Fragment shader code
+   */
+  getFragmentShader() {
+    return `
+      uniform vec3 atmosphereColor;
+      uniform vec3 sunDirection;
+      uniform float planetRadius;
+      uniform float atmosphereRadius;
+      
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+      
+      void main() {
+        // Calculate view direction
+        vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+        
+        // Calculate atmosphere depth
+        float depth = 0.5 * (1.0 - dot(vNormal, viewDirection));
+        
+        // Fresnel effect (atmosphere is thicker at the edges)
+        float fresnel = pow(1.0 - abs(dot(vNormal, viewDirection)), 4.0);
+        
+        // Scattering effect based on sun position
+        float scatter = 0.7 * max(0.0, dot(vNormal, sunDirection));
+        
+        // Combine effects
+        float opacity = max(depth, fresnel) * (0.5 + 0.5 * scatter);
+        
+        // Final color
+        gl_FragColor = vec4(atmosphereColor, opacity * 0.5);
+      }
+    `;
   }
   
   /**
    * Clean up resources
    */
   dispose() {
-    this.hideAllTooltips();
-    
-    if (this.panel && this.panel.parentNode) {
-      this.panel.parentNode.removeChild(this.panel);
+    if (this.atmosphereMesh) {
+      if (this.atmosphereMesh.parent) {
+        this.atmosphereMesh.parent.remove(this.atmosphereMesh);
+      }
+      
+      if (this.atmosphereMesh.geometry) {
+        this.atmosphereMesh.geometry.dispose();
+      }
+      
+      if (this.atmosphereMesh.material) {
+        this.atmosphereMesh.material.dispose();
+      }
+      
+      this.atmosphereMesh = null;
     }
-    
-    this.helpTopics.clear();
   }
 }
 
-module.exports = HelpSystem;
+module.exports = AtmosphereEffect;
 ```
 
 ## Documentation Updates Needed
 
-- Complete user manual with clear explanations of all features
-- Add developer documentation for new components
-- Create tutorials for common tasks
-- Update API documentation for core classes and methods
+- Update user manual with documentation for Lagrange Points and Help System
+- Add developer documentation for the new components
+- Create tutorials for using the educational features
+- Update API documentation for the core classes and methods
+- Create a quick reference guide for keyboard shortcuts
 
 ---
 
