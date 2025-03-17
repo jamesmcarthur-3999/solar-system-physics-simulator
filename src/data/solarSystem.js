@@ -1,6 +1,7 @@
 // Default solar system data
 
-export const solarSystemData = {
+// Update texture paths to use filenames only (full paths will be resolved at runtime)
+const solarSystemData = {
   sun: {
     name: 'Sun',
     mass: 1.989e30, // kg
@@ -8,7 +9,7 @@ export const solarSystemData = {
     position: [0, 0, 0], // AU
     velocity: [0, 0, 0], // km/s
     color: 0xffff00,
-    texture: '../assets/textures/sun.jpg',
+    texture: 'sun.jpg',
     isStar: true
   },
   
@@ -19,7 +20,7 @@ export const solarSystemData = {
     position: [0.387, 0, 0], // AU
     velocity: [0, 47.87, 0], // km/s
     color: 0x8a8a8a,
-    texture: '../assets/textures/mercury.jpg'
+    texture: 'mercury.jpg'
   },
   
   venus: {
@@ -29,7 +30,7 @@ export const solarSystemData = {
     position: [0.723, 0, 0], // AU
     velocity: [0, 35.02, 0], // km/s
     color: 0xe3bb76,
-    texture: '../assets/textures/venus.jpg'
+    texture: 'venus.jpg'
   },
   
   earth: {
@@ -39,7 +40,7 @@ export const solarSystemData = {
     position: [1, 0, 0], // AU
     velocity: [0, 29.78, 0], // km/s
     color: 0x2b5aad,
-    texture: '../assets/textures/earth.jpg'
+    texture: 'earth.jpg'
   },
   
   mars: {
@@ -49,7 +50,7 @@ export const solarSystemData = {
     position: [1.524, 0, 0], // AU
     velocity: [0, 24.13, 0], // km/s
     color: 0xc1440e,
-    texture: '../assets/textures/mars.jpg'
+    texture: 'mars.jpg'
   },
   
   jupiter: {
@@ -59,7 +60,7 @@ export const solarSystemData = {
     position: [5.203, 0, 0], // AU
     velocity: [0, 13.07, 0], // km/s
     color: 0xd8ca9d,
-    texture: '../assets/textures/jupiter.jpg'
+    texture: 'jupiter.jpg'
   },
   
   saturn: {
@@ -69,7 +70,7 @@ export const solarSystemData = {
     position: [9.537, 0, 0], // AU
     velocity: [0, 9.69, 0], // km/s
     color: 0xead6b8,
-    texture: '../assets/textures/saturn.jpg'
+    texture: 'saturn.jpg'
   },
   
   uranus: {
@@ -79,7 +80,7 @@ export const solarSystemData = {
     position: [19.191, 0, 0], // AU
     velocity: [0, 6.81, 0], // km/s
     color: 0x82b3d1,
-    texture: '../assets/textures/uranus.jpg'
+    texture: 'uranus.jpg'
   },
   
   neptune: {
@@ -89,13 +90,21 @@ export const solarSystemData = {
     position: [30.069, 0, 0], // AU
     velocity: [0, 5.43, 0], // km/s
     color: 0x2a7de1,
-    texture: '../assets/textures/neptune.jpg'
+    texture: 'neptune.jpg'
   }
 };
 
 // Helper functions to convert between AU and kilometers
-export const AUtoKm = 149597870.7; // 1 AU in kilometers
-export const kmToAU = 1 / AUtoKm; // 1 km in AU
+const AUtoKm = 149597870.7; // 1 AU in kilometers
+const kmToAU = 1 / AUtoKm; // 1 km in AU
 
 // Physical constants
-export const G = 6.67430e-11; // Gravitational constant in m^3 kg^-1 s^-2
+const G = 6.67430e-11; // Gravitational constant in m^3 kg^-1 s^-2
+
+// Export using CommonJS syntax
+module.exports = {
+  solarSystemData,
+  AUtoKm,
+  kmToAU,
+  G
+};
