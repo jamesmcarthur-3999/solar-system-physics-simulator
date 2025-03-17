@@ -58,7 +58,7 @@ class GravitySimulator {
       this.checkCollisions();
     } catch (error) {
       console.error('Error in physics update:', error);
-      // Don't halt the simulation - we'll just skip this frame
+      // Continue execution to avoid breaking the animation loop
     }
   }
 
@@ -68,9 +68,9 @@ class GravitySimulator {
       const objA = this.objects[i];
       
       for (let j = i + 1; j < this.objects.length; j++) {
+        const objB = this.objects[j];
+        
         try {
-          const objB = this.objects[j];
-          
           // Calculate distance between objects
           const dx = objB.position.x - objA.position.x;
           const dy = objB.position.y - objA.position.y;
@@ -98,8 +98,8 @@ class GravitySimulator {
           objA.applyForce(new THREE.Vector3(forceX, forceY, forceZ));
           objB.applyForce(new THREE.Vector3(-forceX, -forceY, -forceZ));
         } catch (error) {
-          console.error(`Error calculating gravity between objects ${i} and ${j}:`, error);
-          // Continue with the next pair
+          console.error(`Error calculating forces between ${objA.name} and ${objB.name}:`, error);
+          // Continue with other objects
         }
       }
     }
@@ -111,54 +111,55 @@ class GravitySimulator {
       try {
         obj.updatePosition(dt);
       } catch (error) {
-        console.error(`Error updating position for object ${obj.id}:`, error);
-        // Continue with the next object
+        console.error(`Error updating position for ${obj.name}:`, error);
+        // Continue with other objects
       }
     }
   }
 
   checkCollisions() {
-    // Simple collision detection
+    // Basic collision detection implementation
     for (let i = 0; i < this.objects.length; i++) {
       const objA = this.objects[i];
       
       for (let j = i + 1; j < this.objects.length; j++) {
+        const objB = this.objects[j];
+        
         try {
-          const objB = this.objects[j];
-          
-          // Skip star-star collisions (stars shouldn't collide)
-          if (objA.isStar && objB.isStar) continue;
-          
           // Calculate distance between objects
           const dx = objB.position.x - objA.position.x;
           const dy = objB.position.y - objA.position.y;
           const dz = objB.position.z - objA.position.z;
           
-          const distanceSquared = dx * dx + dy * dy + dz * dz;
-          const distance = Math.sqrt(distanceSquared);
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
           
-          // Check if objects are colliding (simple sphere collision)
-          const minDistance = (objA.radius + objB.radius) * 1e-6; // Convert km to AU scale
-          
+          // Check for collision
+          const minDistance = (objA.getDisplayRadius() + objB.getDisplayRadius());
           if (distance < minDistance) {
-            // Simple collision response - log it for now
+            // Very basic collision handling - just log for now
             console.log(`Collision detected between ${objA.name} and ${objB.name}`);
             
-            // TODO: Implement proper collision handling
-            // For now, just slightly separate them to prevent continuous collisions
-            const separation = minDistance - distance;
-            const separationVector = new THREE.Vector3(dx, dy, dz).normalize().multiplyScalar(separation * 1.1);
+            // TODO: Implement more sophisticated collision response
+            // For now, just slightly adjust positions to prevent sticking
+            const pushDistance = (minDistance - distance) * 0.5;
+            const pushX = (dx / distance) * pushDistance;
+            const pushY = (dy / distance) * pushDistance;
+            const pushZ = (dz / distance) * pushDistance;
             
-            // Move smaller object away
-            if (objA.mass < objB.mass) {
-              objA.position.sub(separationVector);
-            } else {
-              objB.position.add(separationVector);
-            }
+            objA.position.x -= pushX;
+            objA.position.y -= pushY;
+            objA.position.z -= pushZ;
+            
+            objB.position.x += pushX;
+            objB.position.y += pushY;
+            objB.position.z += pushZ;
+            
+            if (objA.mesh) objA.mesh.position.copy(objA.position);
+            if (objB.mesh) objB.mesh.position.copy(objB.position);
           }
         } catch (error) {
-          console.error(`Error checking collision between objects ${i} and ${j}:`, error);
-          // Continue with the next pair
+          console.error(`Error checking collision between ${objA.name} and ${objB.name}:`, error);
+          // Continue with other objects
         }
       }
     }
@@ -170,15 +171,19 @@ class GravitySimulator {
   
   // Clean up resources
   dispose() {
-    // Dispose of each object's resources
-    for (const obj of this.objects) {
-      if (typeof obj.dispose === 'function') {
-        obj.dispose();
+    // Dispose all objects
+    for (const object of this.objects) {
+      if (object && typeof object.dispose === 'function') {
+        object.dispose();
       }
     }
+    
+    // Clear objects array
     this.objects = [];
   }
 }
 
 // Export using CommonJS syntax
-module.exports = { GravitySimulator };
+module.exports = {
+  GravitySimulator
+};
