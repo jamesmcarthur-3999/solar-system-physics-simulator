@@ -8,20 +8,35 @@ This document outlines the current known issues and limitations in the Solar Sys
    - The project mixes CommonJS and ES Modules, creating compatibility issues
    - Some files use `import`/`export` while others use `require`/`module.exports`
    - This inconsistency causes issues with Electron's main process
-   - **Status**: Fixed by standardizing on CommonJS
+   - **Status**: Fixed by standardizing on CommonJS and using dynamic imports for ES modules in preload.js
 
-2. **Asset Path Resolution** (✅ FIXED)
+2. **ES Module Import Errors** (✅ FIXED)
+   - ESM imports in preload.js causing errors when loading THREE.js components
+   - `require()` of ES Module files not supported in the current Electron setup
+   - **Status**: Fixed by using dynamic `import()` for ES Module files in preload.js
+
+3. **Content Security Policy Blocking Dynamic Code** (✅ FIXED)
+   - CSP directives in index.html preventing the use of 'unsafe-eval'
+   - This blocked the dynamic module loading system used for constants.js and other files
+   - **Status**: Fixed by allowing 'unsafe-eval' in the CSP directives 
+
+4. **Missing Constants File** (✅ FIXED)
+   - Missing constants.js file causing errors when initializing the application
+   - Physics calculations dependent on values from this file
+   - **Status**: Fixed by creating the missing constants.js file with appropriate values
+
+5. **Asset Path Resolution** (✅ FIXED)
    - Texture loading fails due to incorrect path resolution
    - Relative paths don't work properly in the Electron environment
    - **Status**: Fixed by adding proper path resolution in preload.js and celestialObject.js
 
-3. **Poor Error Handling** (✅ FIXED)
+6. **Poor Error Handling** (✅ FIXED)
    - Limited error handling throughout the application
    - No graceful fallbacks for missing assets or calculation errors
    - No comprehensive error logging system
    - **Status**: Fixed by adding comprehensive try/catch blocks and error logging
 
-4. **Memory Management Issues** (✅ FIXED)
+7. **Memory Management Issues** (✅ FIXED)
    - Three.js resources aren't properly disposed of when no longer needed
    - Potential memory leaks from event listeners not being removed
    - **Status**: Fixed by adding proper cleanup routines
@@ -98,4 +113,4 @@ This document outlines the current known issues and limitations in the Solar Sys
 
 ---
 
-This document will be updated as issues are resolved and new issues are identified. Developers should prioritize addressing these issues according to the [Next Steps](../NEXT_STEPS.md) document.
+This document will be updated as issues are resolved and new issues are identified. Developers should prioritize addressing these issues according to the [Next Steps](../NEXT_STEPS_UPDATED.md) document.
