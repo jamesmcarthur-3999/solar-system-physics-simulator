@@ -19,87 +19,103 @@ const TEXTURE_SOURCES = {
   // Base URL for Solar System Scope textures (2k versions)
   baseUrl: 'https://www.solarsystemscope.com/textures',
   
-  // Celestial body textures
+  // Celestial body textures - required textures
   textures: [
     {
       name: 'sun.jpg',
       url: '/sun.jpg',
-      description: 'The Sun texture'
+      description: 'The Sun texture',
+      required: true
     },
     {
       name: 'mercury.jpg',
       url: '/mercury.jpg',
-      description: 'Mercury texture'
+      description: 'Mercury texture',
+      required: true
     },
     {
       name: 'venus.jpg',
       url: '/venus_atmosphere.jpg',
-      description: 'Venus texture with atmosphere'
+      description: 'Venus texture with atmosphere',
+      required: true
     },
     {
       name: 'earth.jpg',
       url: '/earth_daymap.jpg',
-      description: 'Earth daylight texture'
+      description: 'Earth daylight texture',
+      required: true
     },
     {
       name: 'earth_night.jpg',
       url: '/earth_nightmap.jpg',
-      description: 'Earth nighttime lights texture'
+      description: 'Earth nighttime lights texture',
+      required: false // Optional texture
     },
     {
       name: 'earth_specular.jpg',
       url: '/earth_specular_map.jpg',
-      description: 'Earth specular map for water reflections'
+      description: 'Earth specular map for water reflections',
+      required: false // Optional texture
     },
     {
       name: 'earth_clouds.jpg',
       url: '/earth_clouds.jpg',
-      description: 'Earth cloud layer texture'
+      description: 'Earth cloud layer texture',
+      required: false // Optional texture
     },
     {
       name: 'moon.jpg',
       url: '/moon.jpg',
-      description: 'Moon texture'
+      description: 'Moon texture',
+      required: true
     },
     {
       name: 'mars.jpg',
       url: '/mars.jpg',
-      description: 'Mars texture'
+      description: 'Mars texture',
+      required: true
     },
     {
       name: 'jupiter.jpg',
       url: '/jupiter.jpg',
-      description: 'Jupiter texture'
+      description: 'Jupiter texture',
+      required: true
     },
     {
       name: 'saturn.jpg',
       url: '/saturn.jpg',
-      description: 'Saturn texture'
+      description: 'Saturn texture',
+      required: true
     },
     {
       name: 'saturn_rings.png',
       url: '/saturn_ring_alpha.png',
-      description: 'Saturn rings texture with alpha transparency'
+      description: 'Saturn rings texture with alpha transparency',
+      required: true
     },
     {
       name: 'uranus.jpg',
       url: '/uranus.jpg',
-      description: 'Uranus texture'
+      description: 'Uranus texture',
+      required: true
     },
     {
       name: 'neptune.jpg',
       url: '/neptune.jpg',
-      description: 'Neptune texture'
+      description: 'Neptune texture',
+      required: true
     },
     {
       name: 'pluto.jpg',
       url: '/pluto.jpg',
-      description: 'Pluto texture'
+      description: 'Pluto texture',
+      required: true
     },
     {
       name: 'starfield.jpg',
       url: '/starfield.jpg',
-      description: 'Background starfield texture'
+      description: 'Background starfield texture',
+      required: true
     }
   ]
 };
@@ -112,7 +128,7 @@ if (!fs.existsSync(textureDir)) {
 }
 
 // Download a file from a URL
-function downloadFile(url, destination) {
+function downloadFile(url, destination, required = true) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destination);
     console.log(`Downloading ${url} to ${destination}...`);
@@ -120,7 +136,15 @@ function downloadFile(url, destination) {
     https.get(url, (response) => {
       // Check if response is successful
       if (response.statusCode !== 200) {
-        reject(new Error(`Failed to download ${url}: ${response.statusCode} ${response.statusMessage}`));
+        file.close();
+        fs.unlink(destination, () => {});
+        
+        if (required) {
+          reject(new Error(`Failed to download ${url}: ${response.statusCode} ${response.statusMessage}`));
+        } else {
+          console.warn(`Warning: Optional texture ${url} not available (${response.statusCode} ${response.statusMessage})`);
+          resolve();
+        }
         return;
       }
       
@@ -136,14 +160,54 @@ function downloadFile(url, destination) {
     }).on('error', (err) => {
       // Remove the file on error
       fs.unlink(destination, () => {});
-      reject(err);
+      
+      if (required) {
+        reject(err);
+      } else {
+        console.warn(`Warning: Failed to download optional texture ${url}: ${err.message}`);
+        resolve();
+      }
     });
     
     // Handle write stream error
     file.on('error', (err) => {
       fs.unlink(destination, () => {});
-      reject(err);
+      
+      if (required) {
+        reject(err);
+      } else {
+        console.warn(`Warning: Error writing optional texture ${destination}: ${err.message}`);
+        resolve();
+      }
     });
+  });
+}
+
+// Create a fallback texture for missing optional textures
+function createFallbackTexture(destination, color = '#000000') {
+  return new Promise((resolve, reject) => {
+    try {
+      // Simple 2x2 pixel PNG - just a placeholder
+      console.log(`Creating fallback texture at ${destination}`);
+      
+      // Write a simple colored 16x16 texture
+      const { createCanvas } = require('canvas');
+      const canvas = createCanvas(16, 16);
+      const ctx = canvas.getContext('2d');
+      
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 16, 16);
+      
+      const buffer = canvas.toBuffer('image/png');
+      fs.writeFileSync(destination, buffer);
+      
+      console.log(`Created fallback texture at ${destination}`);
+      resolve();
+    } catch (err) {
+      console.warn(`Warning: Could not create fallback texture: ${err.message}`);
+      console.log('Continuing without fallback texture');
+      resolve();
+    }
   });
 }
 
@@ -162,13 +226,47 @@ async function downloadAllTextures() {
       return Promise.resolve();
     }
     
-    return downloadFile(url, destination);
+    return downloadFile(url, destination, texture.required)
+      .catch(err => {
+        if (!texture.required) {
+          console.warn(`Could not download optional texture ${texture.name}, using fallback`);
+          return createFallbackTexture(destination);
+        }
+        throw err;
+      });
   });
   
-  // Wait for all downloads to complete
-  try {
-    await Promise.all(downloads);
-    console.log('All textures downloaded successfully!');
+  // Keep track of successful and failed downloads
+  const results = { succeeded: [], failed: [] };
+  
+  // Process each download
+  for (let i = 0; i < TEXTURE_SOURCES.textures.length; i++) {
+    const texture = TEXTURE_SOURCES.textures[i];
+    try {
+      await downloads[i];
+      results.succeeded.push(texture.name);
+    } catch (error) {
+      if (texture.required) {
+        results.failed.push({ name: texture.name, error: error.message });
+      }
+    }
+  }
+  
+  // Log results
+  console.log(`\nTexture download summary:`);
+  console.log(`- Successfully downloaded or skipped ${results.succeeded.length} textures`);
+  
+  if (results.failed.length > 0) {
+    console.error(`- Failed to download ${results.failed.length} required textures:`);
+    results.failed.forEach(failure => {
+      console.error(`  - ${failure.name}: ${failure.error}`);
+    });
+    console.error('Required textures could not be downloaded. Application may not display correctly.');
+    
+    // Exit with error code if required textures failed
+    process.exit(1);
+  } else {
+    console.log('All required textures downloaded successfully!');
     
     // Create an attribution file
     const attributionPath = path.join(textureDir, 'ATTRIBUTION.md');
@@ -190,10 +288,6 @@ Downloaded on: ${new Date().toISOString().split('T')[0]}
     
     fs.writeFileSync(attributionPath, attributionContent);
     console.log(`Created attribution file: ${attributionPath}`);
-    
-  } catch (error) {
-    console.error('Error downloading textures:', error);
-    process.exit(1);
   }
 }
 
