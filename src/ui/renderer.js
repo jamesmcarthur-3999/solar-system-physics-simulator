@@ -4,12 +4,14 @@ const { GravitySimulator } = require('../physics/gravitySimulator');
 const { SceneManager } = require('../renderer/scene');
 const { CameraControls } = require('../renderer/cameraControls');
 const { GravityVisualizer } = require('../renderer/gravityVisualizer');
+const LagrangePointVisualizer = require('../renderer/LagrangePointVisualizer');
 const { Dialogs } = require('./dialogs');
 const { InfoPanel } = require('./infoPanel');
 const { ObjectHandlers } = require('./objectHandlers');
 const { SolarSystem, getDefaultSystem } = require('../data/solarSystem');
 const { EducationalFeatures } = require('./educationalFeatures');
 const { SystemSelector } = require('./systemSelector');
+const HelpSystem = require('./HelpSystem');
 const { downloadAllTextures } = require('../utils/downloadTextures');
 
 /**
@@ -49,6 +51,12 @@ class SolarSystemApp {
     // Create default solar system
     this.createDefaultSystem();
     
+    // Initialize Lagrange Points controls
+    this.initLagrangePointsControls();
+    
+    // Initialize Help System button
+    this.initHelpButton();
+    
     // Start animation loop
     this.startAnimationLoop();
     
@@ -77,11 +85,14 @@ class SolarSystemApp {
     // Create gravity visualizer
     this.gravityVisualizer = new GravityVisualizer(this.scene);
     
+    // Create Lagrange point visualizer
+    this.lagrangePointVisualizer = new LagrangePointVisualizer(this.scene);
+    
     // Create dialogs manager
     this.dialogs = new Dialogs();
     
     // Create info panel
-    this.infoPanel = new InfoPanel(this.objectProperties);
+    this.infoPanelManager = new InfoPanel(this.objectProperties);
     
     // Create object handlers
     this.objectHandlers = new ObjectHandlers(this);
@@ -91,6 +102,9 @@ class SolarSystemApp {
     
     // Create educational features
     this.educationalFeatures = new EducationalFeatures(this);
+    
+    // Create help system
+    this.helpSystem = new HelpSystem();
   }
   
   /**
@@ -139,6 +153,139 @@ class SolarSystemApp {
   }
   
   /**
+   * Initialize Lagrange Points controls
+   */
+  initLagrangePointsControls() {
+    // Create control container
+    const container = document.createElement('div');
+    container.className = 'lagrange-points-control';
+    
+    // Create label
+    const label = document.createElement('span');
+    label.className = 'lagrange-points-label';
+    label.textContent = 'Lagrange Points:';
+    
+    // Create system selector
+    this.lagrangeSystemSelect = document.createElement('select');
+    this.lagrangeSystemSelect.className = 'lagrange-points-select';
+    
+    // Default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select System';
+    this.lagrangeSystemSelect.appendChild(defaultOption);
+    
+    // Toggle button
+    this.lagrangeToggleButton = document.createElement('button');
+    this.lagrangeToggleButton.className = 'lagrange-points-toggle';
+    this.lagrangeToggleButton.textContent = 'Show';
+    this.lagrangeToggleButton.disabled = true;
+    
+    // Add toggle event
+    this.lagrangeToggleButton.addEventListener('click', () => {
+      const isVisible = this.lagrangeToggleButton.classList.toggle('active');
+      this.lagrangePointVisualizer.setVisible(isVisible);
+    });
+    
+    // Add select event
+    this.lagrangeSystemSelect.addEventListener('change', () => {
+      const [primaryId, secondaryId] = this.lagrangeSystemSelect.value.split(',');
+      
+      if (primaryId && secondaryId) {
+        const primary = this.objects.find(obj => obj.id === primaryId);
+        const secondary = this.objects.find(obj => obj.id === secondaryId);
+        
+        if (primary && secondary) {
+          this.lagrangePointVisualizer.calculateLagrangePoints(primary, secondary);
+          this.lagrangeToggleButton.disabled = false;
+          
+          // Show the points if the toggle is active
+          if (this.lagrangeToggleButton.classList.contains('active')) {
+            this.lagrangePointVisualizer.setVisible(true);
+          }
+        }
+      } else {
+        // Hide the points when no system is selected
+        this.lagrangePointVisualizer.setVisible(false);
+        this.lagrangeToggleButton.disabled = true;
+        this.lagrangeToggleButton.classList.remove('active');
+      }
+    });
+    
+    // Assemble container
+    container.appendChild(label);
+    container.appendChild(this.lagrangeSystemSelect);
+    container.appendChild(this.lagrangeToggleButton);
+    
+    // Add to document
+    document.body.appendChild(container);
+    
+    // Add help context
+    this.helpSystem.addContextHelp(
+      container.id || Math.random().toString(36).substr(2, 9),
+      `Lagrange points are special positions where a small object can maintain a stable position relative to two larger objects.
+      <ol>
+        <li>Select a two-body system (e.g., Sun-Earth)</li>
+        <li>Click "Show" to display the five Lagrange points</li>
+      </ol>`,
+      'lagrange-points'
+    );
+    
+    // Update system options when objects change
+    this.updateLagrangeSystemOptions();
+  }
+  
+  /**
+   * Update available systems for Lagrange point visualization
+   */
+  updateLagrangeSystemOptions() {
+    // Clear existing options except default
+    while (this.lagrangeSystemSelect.options.length > 1) {
+      this.lagrangeSystemSelect.remove(1);
+    }
+    
+    // Find all stars
+    const stars = this.objects.filter(obj => obj.type === 'star');
+    
+    // For each star, add options for star-planet pairs
+    stars.forEach(star => {
+      // Find planets orbiting this star
+      const planets = this.objects.filter(obj => 
+        obj.type === 'planet' && 
+        obj.orbiting === star.id
+      );
+      
+      // Add option for each star-planet pair
+      planets.forEach(planet => {
+        const option = document.createElement('option');
+        option.value = `${star.id},${planet.id}`;
+        option.textContent = `${star.name}-${planet.name}`;
+        this.lagrangeSystemSelect.appendChild(option);
+      });
+    });
+  }
+  
+  /**
+   * Initialize help button
+   */
+  initHelpButton() {
+    // Create help button
+    const helpButton = document.createElement('button');
+    helpButton.className = 'help-button';
+    helpButton.innerHTML = '?';
+    helpButton.setAttribute('aria-label', 'Open help');
+    helpButton.title = 'Open help (H)';
+    
+    // Add click event
+    helpButton.addEventListener('click', () => {
+      this.helpSystem.togglePanel();
+    });
+    
+    // Add to document
+    document.body.appendChild(helpButton);
+  }
+  
+  /**
    * Handle keyboard shortcuts
    * @param {KeyboardEvent} e - The keyboard event
    */
@@ -163,6 +310,18 @@ class SolarSystemApp {
       this.handleResetView();
       e.preventDefault();
     }
+    
+    // 'H' key toggles help panel
+    if (e.code === 'KeyH') {
+      this.helpSystem.togglePanel();
+      e.preventDefault();
+    }
+    
+    // 'Escape' key closes help panel and tooltips
+    if (e.code === 'Escape') {
+      this.helpSystem.hidePanel();
+      this.helpSystem.hideAllTooltips();
+    }
   }
   
   /**
@@ -186,6 +345,9 @@ class SolarSystemApp {
     
     // Update body count
     this.updateBodyCount();
+    
+    // Update Lagrange system options
+    this.updateLagrangeSystemOptions();
   }
   
   /**
@@ -225,6 +387,11 @@ class SolarSystemApp {
       
       // Update gravity visualizer
       this.gravityVisualizer.update(this.objects);
+      
+      // Update Lagrange points if they're visible
+      if (this.lagrangePointVisualizer.visible) {
+        this.lagrangePointVisualizer.update();
+      }
       
       // Update camera controls
       this.cameraControls.update();
@@ -382,7 +549,7 @@ class SolarSystemApp {
       const object = this.objects.find(obj => obj.id === this.selectedObjectId);
       
       if (object) {
-        this.infoPanel.updateObjectInfo(object);
+        this.infoPanelManager.updateObjectInfo(object);
         
         // Update any additional info specific to renderer
         const velocityEl = document.getElementById('velocity-value');
@@ -409,6 +576,32 @@ class SolarSystemApp {
   }
   
   /**
+   * Add the "Show Lagrange Points" option to the educational menu
+   * @param {HTMLElement} menu - The educational menu element
+   */
+  addLagrangePointsMenuItem(menu) {
+    const lagrangeItem = document.createElement('button');
+    lagrangeItem.className = 'educational-menu-item';
+    lagrangeItem.textContent = 'Show Lagrange Points';
+    
+    lagrangeItem.addEventListener('click', () => {
+      // Focus on Lagrange controls
+      this.lagrangeSystemSelect.focus();
+      
+      // Show tooltip if no system is selected
+      if (this.lagrangeSystemSelect.value === '') {
+        this.helpSystem.showTooltip(
+          this.lagrangeSystemSelect.id || Math.random().toString(36).substr(2, 9),
+          'Select a system first to display Lagrange points.',
+          'lagrange-points'
+        );
+      }
+    });
+    
+    menu.appendChild(lagrangeItem);
+  }
+  
+  /**
    * Clean up resources
    */
   dispose() {
@@ -427,6 +620,16 @@ class SolarSystemApp {
       if (this.timeFasterButton) this.timeFasterButton.removeEventListener('click', this.increaseTimeScale);
       if (this.resetViewButton) this.resetViewButton.removeEventListener('click', this.resetView);
       if (this.addObjectButton) this.addObjectButton.removeEventListener('click', this.addNewObject);
+      
+      // Dispose of help system
+      if (this.helpSystem) {
+        this.helpSystem.dispose();
+      }
+      
+      // Dispose of Lagrange point visualizer
+      if (this.lagrangePointVisualizer) {
+        this.lagrangePointVisualizer.dispose();
+      }
       
       // Dispose of system selector
       if (this.systemSelector) {
