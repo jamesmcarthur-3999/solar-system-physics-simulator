@@ -1,189 +1,167 @@
-// Import constants
-const { G } = require('../data/solarSystem');
-const THREE = require('three');
+// Gravity Simulator - Handles physics calculations for celestial bodies
 
-// GravitySimulator class for handling physics calculations
 class GravitySimulator {
   constructor() {
+    // Internal state
     this.objects = [];
-    this.timeScale = 1; // 1 day per second
+    this.timeScale = window.CONSTANTS.DEFAULT_TIME_SCALE; // Days per second
     this.paused = false;
     this.lastTime = 0;
+    
+    // Physics settings
+    this.G = window.CONSTANTS.G;
+    this.secondsPerDay = window.CONSTANTS.SECONDS_PER_DAY;
   }
-
+  
+  /**
+   * Add a celestial object to the simulation
+   * @param {Object} object - The object to add
+   */
   addObject(object) {
     this.objects.push(object);
   }
-
+  
+  /**
+   * Remove an object from the simulation
+   * @param {String} id - ID of the object to remove
+   */
   removeObject(id) {
-    // Get the object first so we can dispose of its resources
-    const object = this.objects.find(obj => obj.id === id);
-    if (object && typeof object.dispose === 'function') {
-      object.dispose();
+    const index = this.objects.findIndex(obj => obj.id === id);
+    if (index !== -1) {
+      this.objects.splice(index, 1);
     }
-    
-    // Remove from array
-    this.objects = this.objects.filter(obj => obj.id !== id);
   }
-
+  
+  /**
+   * Set the simulation time scale
+   * @param {Number} scale - Time scale in days per second
+   */
   setTimeScale(scale) {
     this.timeScale = scale;
   }
-
+  
+  /**
+   * Set whether the simulation is paused
+   * @param {Boolean} paused - Whether to pause the simulation
+   */
   setPaused(paused) {
     this.paused = paused;
   }
-
+  
+  /**
+   * Get all objects in the simulation
+   * @returns {Array} - Array of celestial objects
+   */
+  getObjects() {
+    return this.objects;
+  }
+  
+  /**
+   * Calculate gravitational force between two objects
+   * @param {Object} obj1 - First object
+   * @param {Object} obj2 - Second object
+   * @returns {Object} - Force vector with x, y, z components
+   */
+  calculateGravitationalForce(obj1, obj2) {
+    // Calculate distance vector
+    const dx = obj2.position.x - obj1.position.x;
+    const dy = obj2.position.y - obj1.position.y;
+    const dz = obj2.position.z - obj1.position.z;
+    
+    // Calculate distance squared
+    const distanceSquared = dx * dx + dy * dy + dz * dz;
+    
+    // Avoid division by zero
+    if (distanceSquared === 0) return { x: 0, y: 0, z: 0 };
+    
+    // Calculate distance
+    const distance = Math.sqrt(distanceSquared);
+    
+    // Calculate gravitational force magnitude: F = G * m1 * m2 / r^2
+    const forceMagnitude = this.G * obj1.mass * obj2.mass / distanceSquared;
+    
+    // Calculate normalized direction vector
+    const fx = (dx / distance) * forceMagnitude;
+    const fy = (dy / distance) * forceMagnitude;
+    const fz = (dz / distance) * forceMagnitude;
+    
+    return { x: fx, y: fy, z: fz };
+  }
+  
+  /**
+   * Update all object positions based on gravitational forces
+   * @param {Number} time - Current time in milliseconds
+   */
   update(time) {
     if (this.paused) return;
     
-    try {
-      // Calculate delta time in seconds
-      const dt = (this.lastTime === 0) ? 0 : (time - this.lastTime) / 1000;
-      this.lastTime = time;
-      
-      // Skip first frame
-      if (dt === 0) return;
-      
-      // Scale delta time by time scale (convert to days)
-      const scaledDt = dt * this.timeScale / 86400; // seconds to days
-      
-      // Calculate forces and update velocities
-      this.calculateGravitationalForces(scaledDt);
-      
-      // Update positions based on new velocities
-      this.updatePositions(scaledDt);
-      
-      // Check for collisions
-      this.checkCollisions();
-    } catch (error) {
-      console.error('Error in physics update:', error);
-      // Continue execution to avoid breaking the animation loop
-    }
-  }
-
-  calculateGravitationalForces(dt) {
-    // For each pair of objects, calculate gravitational force
+    // Calculate delta time in seconds
+    const deltaTime = (this.lastTime === 0) ? 0 : (time - this.lastTime) / 1000;
+    this.lastTime = time;
+    
+    // Scale delta time by time scale (days per second)
+    const scaledDeltaTime = deltaTime * this.timeScale * this.secondsPerDay;
+    
+    // Skip if delta time is too large (e.g., after switching tabs)
+    if (scaledDeltaTime > 100000) return;
+    
+    // Calculate forces
     for (let i = 0; i < this.objects.length; i++) {
-      const objA = this.objects[i];
+      const obj1 = this.objects[i];
       
-      for (let j = i + 1; j < this.objects.length; j++) {
-        const objB = this.objects[j];
-        
-        try {
-          // Calculate distance between objects
-          const dx = objB.position.x - objA.position.x;
-          const dy = objB.position.y - objA.position.y;
-          const dz = objB.position.z - objA.position.z;
-          
-          const distanceSquared = dx * dx + dy * dy + dz * dz;
-          const distance = Math.sqrt(distanceSquared);
-          
-          // Skip if objects are too close (would cause extreme forces)
-          if (distance < (objA.radius + objB.radius) * 1e-6) {
-            // Handle collision eventually
-            continue;
-          }
-          
-          // Calculate force magnitude using Newton's law of gravitation
-          // F = G * (m1 * m2) / r^2
-          const forceMagnitude = G * objA.mass * objB.mass / distanceSquared;
-          
-          // Calculate force direction
-          const forceX = forceMagnitude * dx / distance;
-          const forceY = forceMagnitude * dy / distance;
-          const forceZ = forceMagnitude * dz / distance;
-          
-          // Apply force to both objects (equal and opposite)
-          objA.applyForce(new THREE.Vector3(forceX, forceY, forceZ));
-          objB.applyForce(new THREE.Vector3(-forceX, -forceY, -forceZ));
-        } catch (error) {
-          console.error(`Error calculating forces between ${objA.name} and ${objB.name}:`, error);
-          // Continue with other objects
-        }
-      }
-    }
-  }
-
-  updatePositions(dt) {
-    // Update each object's position based on velocity
-    for (const obj of this.objects) {
-      try {
-        obj.updatePosition(dt);
-      } catch (error) {
-        console.error(`Error updating position for ${obj.name}:`, error);
-        // Continue with other objects
-      }
-    }
-  }
-
-  checkCollisions() {
-    // Basic collision detection implementation
-    for (let i = 0; i < this.objects.length; i++) {
-      const objA = this.objects[i];
+      // Reset acceleration
+      obj1.acceleration = { x: 0, y: 0, z: 0 };
       
-      for (let j = i + 1; j < this.objects.length; j++) {
-        const objB = this.objects[j];
+      // Sum forces from all other objects
+      for (let j = 0; j < this.objects.length; j++) {
+        if (i === j) continue; // Skip self
         
-        try {
-          // Calculate distance between objects
-          const dx = objB.position.x - objA.position.x;
-          const dy = objB.position.y - objA.position.y;
-          const dz = objB.position.z - objA.position.z;
-          
-          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          
-          // Check for collision
-          const minDistance = (objA.getDisplayRadius() + objB.getDisplayRadius());
-          if (distance < minDistance) {
-            // Very basic collision handling - just log for now
-            console.log(`Collision detected between ${objA.name} and ${objB.name}`);
-            
-            // TODO: Implement more sophisticated collision response
-            // For now, just slightly adjust positions to prevent sticking
-            const pushDistance = (minDistance - distance) * 0.5;
-            const pushX = (dx / distance) * pushDistance;
-            const pushY = (dy / distance) * pushDistance;
-            const pushZ = (dz / distance) * pushDistance;
-            
-            objA.position.x -= pushX;
-            objA.position.y -= pushY;
-            objA.position.z -= pushZ;
-            
-            objB.position.x += pushX;
-            objB.position.y += pushY;
-            objB.position.z += pushZ;
-            
-            if (objA.mesh) objA.mesh.position.copy(objA.position);
-            if (objB.mesh) objB.mesh.position.copy(objB.position);
-          }
-        } catch (error) {
-          console.error(`Error checking collision between ${objA.name} and ${objB.name}:`, error);
-          // Continue with other objects
-        }
-      }
-    }
-  }
-
-  reset() {
-    this.lastTime = 0;
-  }
-  
-  // Clean up resources
-  dispose() {
-    // Dispose all objects
-    for (const object of this.objects) {
-      if (object && typeof object.dispose === 'function') {
-        object.dispose();
+        const obj2 = this.objects[j];
+        
+        // Calculate force
+        const force = this.calculateGravitationalForce(obj1, obj2);
+        
+        // Apply to acceleration (F = ma, so a = F/m)
+        obj1.acceleration.x += force.x / obj1.mass;
+        obj1.acceleration.y += force.y / obj1.mass;
+        obj1.acceleration.z += force.z / obj1.mass;
       }
     }
     
-    // Clear objects array
+    // Update velocities and positions
+    for (const obj of this.objects) {
+      // Skip objects with fixed positions
+      if (obj.fixed) continue;
+      
+      // Update velocity using acceleration
+      obj.velocity.x += obj.acceleration.x * scaledDeltaTime;
+      obj.velocity.y += obj.acceleration.y * scaledDeltaTime;
+      obj.velocity.z += obj.acceleration.z * scaledDeltaTime;
+      
+      // Update position using velocity
+      obj.position.x += obj.velocity.x * scaledDeltaTime;
+      obj.position.y += obj.velocity.y * scaledDeltaTime;
+      obj.position.z += obj.velocity.z * scaledDeltaTime;
+      
+      // Update orbit history
+      if (obj.orbitHistory) {
+        obj.orbitHistory.push({ ...obj.position });
+        
+        // Limit history length
+        if (obj.orbitHistory.length > obj.orbitHistoryLength) {
+          obj.orbitHistory.shift();
+        }
+      }
+    }
+  }
+  
+  /**
+   * Clean up resources
+   */
+  dispose() {
     this.objects = [];
   }
 }
 
-// Export using CommonJS syntax
-module.exports = {
-  GravitySimulator
-};
+// Make available to the window context
+window.GravitySimulator = GravitySimulator;
