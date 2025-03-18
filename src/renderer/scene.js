@@ -37,6 +37,8 @@ class SceneManager {
       
       // Handle initial sizing
       this.handleResize();
+      
+      console.log("Scene manager initialized successfully");
     } catch (error) {
       console.error('Error initializing SceneManager:', error);
       // Create fallback objects
@@ -88,10 +90,27 @@ class SceneManager {
     try {
       const THREE = window.THREE;
       
-      this.renderer = new THREE.WebGLRenderer({ antialias: true });
-      this.renderer.setPixelRatio(window.devicePixelRatio);
+      // Configure renderer options based on hardware capabilities
+      const rendererOptions = {
+        antialias: false, // Disable antialiasing for better performance
+        alpha: false,
+        precision: 'lowp', // Use lower precision to improve performance
+        powerPreference: 'low-power'
+      };
+      
+      // Create renderer with options
+      this.renderer = new THREE.WebGLRenderer(rendererOptions);
+      
+      // Set renderer properties
+      this.renderer.setPixelRatio(1); // Use low pixel ratio for better performance
       this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-      this.renderer.shadowMap.enabled = true;
+      
+      // Disable shadow maps to improve performance
+      this.renderer.shadowMap.enabled = false;
+      
+      // Set other performance settings
+      this.renderer.logarithmicDepthBuffer = false;
+      this.renderer.physicallyCorrectLights = false;
       
       // Add renderer to container
       if (this.container) {
@@ -99,15 +118,43 @@ class SceneManager {
       } else {
         document.body.appendChild(this.renderer.domElement);
       }
+      
+      console.log("THREE.js renderer initialized successfully");
     } catch (error) {
       console.error('Error setting up renderer:', error);
-      // Create a fallback renderer
-      this.renderer = { 
-        setSize: () => {}, 
-        render: () => {}, 
-        shadowMap: { enabled: false },
-        domElement: document.createElement('div')
-      };
+      
+      // Try a software renderer as fallback
+      try {
+        const THREE = window.THREE;
+        console.warn("Attempting to use software renderer as fallback");
+        
+        // Create a very basic renderer
+        this.renderer = new THREE.WebGLRenderer({
+          antialias: false,
+          alpha: false,
+          precision: 'lowp',
+          powerPreference: 'low-power',
+          failIfMajorPerformanceCaveat: false
+        });
+        
+        // Set minimal settings
+        this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+        
+        // Add renderer to container
+        if (this.container) {
+          this.container.appendChild(this.renderer.domElement);
+        }
+      } catch (fallbackError) {
+        console.error("Software renderer also failed:", fallbackError);
+        
+        // Create a fallback renderer object that does nothing
+        this.renderer = { 
+          setSize: () => {}, 
+          render: () => {}, 
+          shadowMap: { enabled: false },
+          domElement: document.createElement('div')
+        };
+      }
     }
   }
   
@@ -138,6 +185,9 @@ class SceneManager {
     try {
       const THREE = window.THREE;
       
+      // Use fewer stars if we're in software rendering mode
+      const starsCount = window.USE_SOFTWARE_RENDERING ? 500 : 2000;
+      
       const starsGeometry = new THREE.BufferGeometry();
       const starsMaterial = new THREE.PointsMaterial({
         color: 0xffffff,
@@ -146,7 +196,6 @@ class SceneManager {
       });
       
       // Generate random stars
-      const starsCount = 2000;
       const positions = new Float32Array(starsCount * 3);
       
       for (let i = 0; i < starsCount; i++) {
