@@ -1,27 +1,59 @@
 // Scene Manager - Handles THREE.js scene setup and rendering
 
+/**
+ * SceneManager class
+ * Handles THREE.js scene setup, rendering, and cleanup
+ */
 class SceneManager {
+  /**
+   * Create a new scene manager
+   * @param {HTMLElement} container - DOM element to append renderer to
+   */
   constructor(container) {
     this.container = container;
     
-    // Initialize scene
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x000000);
-    
-    // Initialize camera
-    this.setupCamera();
-    
-    // Initialize renderer
-    this.setupRenderer();
-    
-    // Add ambient light
-    this.addLights();
-    
-    // Add starfield background
-    this.addStarfield();
-    
-    // Handle initial sizing
-    this.handleResize();
+    try {
+      // Get THREE safely
+      const THREE = window.THREE;
+      if (!THREE) {
+        throw new Error('THREE.js not available');
+      }
+      
+      // Initialize scene
+      this.scene = new THREE.Scene();
+      this.scene.background = new THREE.Color(0x000000);
+      
+      // Initialize camera
+      this.setupCamera();
+      
+      // Initialize renderer
+      this.setupRenderer();
+      
+      // Add ambient light
+      this.addLights();
+      
+      // Add starfield background
+      this.addStarfield();
+      
+      // Handle initial sizing
+      this.handleResize();
+    } catch (error) {
+      console.error('Error initializing SceneManager:', error);
+      // Create fallback objects
+      this.scene = { add: () => {}, remove: () => {} };
+      this.camera = { 
+        aspect: 1, 
+        updateProjectionMatrix: () => {}, 
+        position: { set: () => {}, copy: () => {} },
+        lookAt: () => {}
+      };
+      this.renderer = { 
+        setSize: () => {}, 
+        render: () => {}, 
+        shadowMap: { enabled: false },
+        domElement: document.createElement('div')
+      };
+    }
   }
   
   /**
@@ -29,6 +61,8 @@ class SceneManager {
    */
   setupCamera() {
     try {
+      const THREE = window.THREE;
+      
       const width = this.container ? this.container.clientWidth : window.innerWidth;
       const height = this.container ? this.container.clientHeight : window.innerHeight;
       
@@ -36,7 +70,7 @@ class SceneManager {
       this.camera.position.set(0, 5, 15);
       this.camera.lookAt(0, 0, 0);
     } catch (error) {
-      console.error("Error setting up camera:", error);
+      console.error('Error setting up camera:', error);
       // Create a fallback camera
       this.camera = {
         aspect: 1, 
@@ -52,6 +86,8 @@ class SceneManager {
    */
   setupRenderer() {
     try {
+      const THREE = window.THREE;
+      
       this.renderer = new THREE.WebGLRenderer({ antialias: true });
       this.renderer.setPixelRatio(window.devicePixelRatio);
       this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
@@ -64,7 +100,7 @@ class SceneManager {
         document.body.appendChild(this.renderer.domElement);
       }
     } catch (error) {
-      console.error("Error setting up renderer:", error);
+      console.error('Error setting up renderer:', error);
       // Create a fallback renderer
       this.renderer = { 
         setSize: () => {}, 
@@ -80,6 +116,8 @@ class SceneManager {
    */
   addLights() {
     try {
+      const THREE = window.THREE;
+      
       // Ambient light
       const ambient = new THREE.AmbientLight(0x404040);
       this.scene.add(ambient);
@@ -89,7 +127,7 @@ class SceneManager {
       sunLight.position.set(0, 0, 0);
       this.scene.add(sunLight);
     } catch (error) {
-      console.error("Error adding lights:", error);
+      console.error('Error adding lights:', error);
     }
   }
   
@@ -98,6 +136,8 @@ class SceneManager {
    */
   addStarfield() {
     try {
+      const THREE = window.THREE;
+      
       const starsGeometry = new THREE.BufferGeometry();
       const starsMaterial = new THREE.PointsMaterial({
         color: 0xffffff,
@@ -126,7 +166,7 @@ class SceneManager {
       this.starField = new THREE.Points(starsGeometry, starsMaterial);
       this.scene.add(this.starField);
     } catch (error) {
-      console.error("Error creating starfield:", error);
+      console.error('Error creating starfield:', error);
     }
   }
   
@@ -145,7 +185,7 @@ class SceneManager {
       
       this.renderer.setSize(width, height);
     } catch (error) {
-      console.error("Error handling resize:", error);
+      console.error('Error handling resize:', error);
     }
   }
   
@@ -158,7 +198,7 @@ class SceneManager {
         this.renderer.render(this.scene, this.camera);
       }
     } catch (error) {
-      console.error("Error rendering scene:", error);
+      console.error('Error rendering scene:', error);
     }
   }
   
@@ -188,11 +228,13 @@ class SceneManager {
         this.scene.remove(this.starField);
       }
     } catch (error) {
-      console.error("Error disposing scene manager:", error);
+      console.error('Error disposing scene manager:', error);
     }
   }
 }
 
-module.exports = {
-  SceneManager
-};
+// Make available to the window context
+window.SceneManager = SceneManager;
+
+// Export using CommonJS syntax for compatibility
+module.exports = SceneManager;
