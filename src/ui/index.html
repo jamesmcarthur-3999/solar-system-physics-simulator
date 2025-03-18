@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net https://www.solarsystemscope.com;">
   <title>Solar System Simulator</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -39,10 +39,19 @@
     </footer>
   </div>
 
-  <!-- Load main renderer -->
+  <!-- Load renderer script -->
   <script src="./renderer.js" type="module"></script>
   
   <!-- Load patch script -->
   <script src="../renderer-patch.js"></script>
+
+  <!-- Error display -->
+  <div id="error-container" style="display: none;">
+    <div class="error-message">
+      <h2>Error Loading Application</h2>
+      <p id="error-message">An error occurred while loading the application.</p>
+      <p>Please check the console for more details.</p>
+    </div>
+  </div>
 </body>
 </html>
