@@ -1,5 +1,5 @@
 // InformationPanelManager.js - Manages educational information panels
-const THREE = require('three');
+const THREE = typeof window !== 'undefined' && window.THREE ? window.THREE : (typeof require !== 'undefined' ? require('three') : {});
 
 /**
  * Manages educational information panels
@@ -19,23 +19,27 @@ class InformationPanelManager {
    * Create the panel container
    */
   createPanelContainer() {
-    this.container = document.createElement('div');
-    this.container.className = 'info-panels-container';
-    document.body.appendChild(this.container);
-    
-    // Create panel selector
-    this.selector = document.createElement('div');
-    this.selector.className = 'info-panel-selector';
-    
-    const selectorTitle = document.createElement('h4');
-    selectorTitle.textContent = 'Educational Content';
-    this.selector.appendChild(selectorTitle);
-    
-    this.categoryContainer = document.createElement('div');
-    this.categoryContainer.className = 'info-panel-categories';
-    this.selector.appendChild(this.categoryContainer);
-    
-    document.body.appendChild(this.selector);
+    try {
+      this.container = document.createElement('div');
+      this.container.className = 'info-panels-container';
+      document.body.appendChild(this.container);
+      
+      // Create panel selector
+      this.selector = document.createElement('div');
+      this.selector.className = 'info-panel-selector';
+      
+      const selectorTitle = document.createElement('h4');
+      selectorTitle.textContent = 'Educational Content';
+      this.selector.appendChild(selectorTitle);
+      
+      this.categoryContainer = document.createElement('div');
+      this.categoryContainer.className = 'info-panel-categories';
+      this.selector.appendChild(this.categoryContainer);
+      
+      document.body.appendChild(this.selector);
+    } catch (error) {
+      console.error('Error creating panel container:', error);
+    }
   }
   
   /**
@@ -47,22 +51,29 @@ class InformationPanelManager {
    * @returns {Object} - The created panel
    */
   addPanel(id, title, content, category) {
-    const panel = {
-      id,
-      title,
-      content,
-      category,
-      element: this.createPanelElement(id, title, content)
-    };
-    
-    this.panels[id] = panel;
-    this.container.appendChild(panel.element);
-    panel.element.style.display = 'none';
-    
-    // Add to category list
-    this.updateCategoryList();
-    
-    return panel;
+    try {
+      const panel = {
+        id,
+        title,
+        content,
+        category,
+        element: this.createPanelElement(id, title, content)
+      };
+      
+      this.panels[id] = panel;
+      if (this.container && panel.element) {
+        this.container.appendChild(panel.element);
+        panel.element.style.display = 'none';
+      }
+      
+      // Add to category list
+      this.updateCategoryList();
+      
+      return panel;
+    } catch (error) {
+      console.error('Error adding panel:', error);
+      return { id, title, content, category, element: null };
+    }
   }
   
   /**
@@ -82,77 +93,89 @@ class InformationPanelManager {
    * @returns {HTMLElement} - The created panel element
    */
   createPanelElement(id, title, content) {
-    const panel = document.createElement('div');
-    panel.className = 'info-panel';
-    panel.id = `info-panel-${id}`;
-    
-    const header = document.createElement('div');
-    header.className = 'info-panel-header';
-    
-    const titleElement = document.createElement('h3');
-    titleElement.textContent = title;
-    
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '×';
-    closeButton.className = 'info-panel-close';
-    closeButton.addEventListener('click', () => this.hidePanel(id));
-    
-    header.appendChild(titleElement);
-    header.appendChild(closeButton);
-    
-    const contentElement = document.createElement('div');
-    contentElement.className = 'info-panel-content';
-    contentElement.innerHTML = content;
-    
-    panel.appendChild(header);
-    panel.appendChild(contentElement);
-    
-    return panel;
+    try {
+      const panel = document.createElement('div');
+      panel.className = 'info-panel';
+      panel.id = `info-panel-${id}`;
+      
+      const header = document.createElement('div');
+      header.className = 'info-panel-header';
+      
+      const titleElement = document.createElement('h3');
+      titleElement.textContent = title;
+      
+      const closeButton = document.createElement('button');
+      closeButton.textContent = '×';
+      closeButton.className = 'info-panel-close';
+      closeButton.addEventListener('click', () => this.hidePanel(id));
+      
+      header.appendChild(titleElement);
+      header.appendChild(closeButton);
+      
+      const contentElement = document.createElement('div');
+      contentElement.className = 'info-panel-content';
+      contentElement.innerHTML = content;
+      
+      panel.appendChild(header);
+      panel.appendChild(contentElement);
+      
+      return panel;
+    } catch (error) {
+      console.error('Error creating panel element:', error);
+      return null;
+    }
   }
   
   /**
    * Update the category list in the selector
    */
   updateCategoryList() {
-    // Clear current list
-    this.categoryContainer.innerHTML = '';
-    
-    // Get unique categories
-    const categories = [...new Set(Object.values(this.panels).map(panel => panel.category))];
-    
-    // Create category sections
-    categories.forEach(category => {
-      const categorySection = document.createElement('div');
-      categorySection.className = 'info-panel-category-section';
+    try {
+      // Verify elements exist
+      if (!this.categoryContainer) return;
       
-      const categoryTitle = document.createElement('h5');
-      categoryTitle.textContent = category;
-      categorySection.appendChild(categoryTitle);
+      // Clear current list
+      this.categoryContainer.innerHTML = '';
       
-      // Add panels in this category
-      const panelList = document.createElement('ul');
+      // Get unique categories
+      const categories = [...new Set(Object.values(this.panels).map(panel => panel.category))];
       
-      const panelsInCategory = Object.values(this.panels)
-        .filter(panel => panel.category === category)
-        .sort((a, b) => a.title.localeCompare(b.title));
-      
-      panelsInCategory.forEach(panel => {
-        const item = document.createElement('li');
-        const link = document.createElement('a');
-        link.href = '#';
-        link.textContent = panel.title;
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.showPanel(panel.id);
+      // Create category sections
+      categories.forEach(category => {
+        const categorySection = document.createElement('div');
+        categorySection.className = 'info-panel-category-section';
+        
+        const categoryTitle = document.createElement('h5');
+        categoryTitle.textContent = category;
+        categorySection.appendChild(categoryTitle);
+        
+        // Add panels in this category
+        const panelList = document.createElement('ul');
+        
+        const panelsInCategory = Object.values(this.panels)
+          .filter(panel => panel.category === category)
+          .sort((a, b) => a.title.localeCompare(b.title));
+        
+        panelsInCategory.forEach(panel => {
+          const item = document.createElement('li');
+          const link = document.createElement('a');
+          link.href = '#';
+          link.textContent = panel.title;
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.showPanel(panel.id);
+          });
+          
+          item.appendChild(link);
+          panelList.appendChild(item);
         });
         
-        item.appendChild(link);
-        panelList.appendChild(item);
+        categorySection.appendChild(panelList);
+        this.categoryContainer.appendChild(categorySection);
       });
-      
-      categorySection.appendChild(panelList);
-      this.categoryContainer.appendChild(categorySection);
-    });
+    } catch (error) {
+      console.error('Error updating category list:', error);
+    }
   }
   
   /**
@@ -160,15 +183,19 @@ class InformationPanelManager {
    * @param {String} id - ID of the panel to show
    */
   showPanel(id) {
-    // Hide current panel
-    if (this.activePanel) {
-      this.panels[this.activePanel].element.style.display = 'none';
-    }
-    
-    // Show the requested panel
-    if (this.panels[id]) {
-      this.panels[id].element.style.display = 'block';
-      this.activePanel = id;
+    try {
+      // Hide current panel
+      if (this.activePanel && this.panels[this.activePanel] && this.panels[this.activePanel].element) {
+        this.panels[this.activePanel].element.style.display = 'none';
+      }
+      
+      // Show the requested panel
+      if (this.panels[id] && this.panels[id].element) {
+        this.panels[id].element.style.display = 'block';
+        this.activePanel = id;
+      }
+    } catch (error) {
+      console.error('Error showing panel:', error);
     }
   }
   
@@ -177,12 +204,16 @@ class InformationPanelManager {
    * @param {String} id - ID of the panel to hide
    */
   hidePanel(id) {
-    if (this.panels[id]) {
-      this.panels[id].element.style.display = 'none';
-      
-      if (this.activePanel === id) {
-        this.activePanel = null;
+    try {
+      if (this.panels[id] && this.panels[id].element) {
+        this.panels[id].element.style.display = 'none';
+        
+        if (this.activePanel === id) {
+          this.activePanel = null;
+        }
       }
+    } catch (error) {
+      console.error('Error hiding panel:', error);
     }
   }
   
@@ -625,30 +656,43 @@ class InformationPanelManager {
    * Clean up resources
    */
   dispose() {
-    // Remove event listeners from panel close buttons
-    const closeButtons = document.querySelectorAll('.info-panel-close');
-    closeButtons.forEach(button => {
-      button.removeEventListener('click', () => {});
-    });
-    
-    // Remove event listeners from panel selector links
-    const links = this.selector.querySelectorAll('a');
-    links.forEach(link => {
-      link.removeEventListener('click', () => {});
-    });
-    
-    // Remove panels from DOM
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
-    }
-    
-    // Remove selector from DOM
-    if (this.selector && this.selector.parentNode) {
-      this.selector.parentNode.removeChild(this.selector);
+    try {
+      // Remove event listeners from panel close buttons
+      const closeButtons = document.querySelectorAll('.info-panel-close');
+      closeButtons.forEach(button => {
+        button.removeEventListener('click', () => {});
+      });
+      
+      // Remove event listeners from panel selector links
+      if (this.selector) {
+        const links = this.selector.querySelectorAll('a');
+        links.forEach(link => {
+          link.removeEventListener('click', () => {});
+        });
+      }
+      
+      // Remove panels from DOM
+      if (this.container && this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
+      
+      // Remove selector from DOM
+      if (this.selector && this.selector.parentNode) {
+        this.selector.parentNode.removeChild(this.selector);
+      }
+    } catch (error) {
+      console.error('Error disposing panel resources:', error);
     }
   }
 }
 
-module.exports = {
-  InformationPanelManager
-};
+// Export for both CommonJS and browser environments
+if (typeof window !== 'undefined') {
+  window.InformationPanelManager = InformationPanelManager;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    InformationPanelManager
+  };
+}
