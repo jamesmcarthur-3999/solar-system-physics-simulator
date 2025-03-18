@@ -1,7 +1,5 @@
-// Import Three.js using CommonJS
-const THREE = require('three');
-const { TextGeometry } = require('three/examples/jsm/geometries/TextGeometry.js');
-const { FontLoader } = require('three/examples/jsm/loaders/FontLoader.js');
+// LagrangePointVisualizer.js
+// Handles calculation and visualization of Lagrange points for two-body systems
 
 /**
  * LagrangePointVisualizer class
@@ -26,14 +24,36 @@ class LagrangePointVisualizer {
    * Load the font for Lagrange point labels
    */
   loadFont() {
-    const fontLoader = new FontLoader();
-    fontLoader.load('https://cdn.jsdelivr.net/npm/three/examples/fonts/helvetiker_regular.typeface.json', (font) => {
-      this.font = font;
-      // If we already have bodies selected, recalculate with the font
-      if (this.primaryBody && this.secondaryBody) {
-        this.calculateLagrangePoints(this.primaryBody, this.secondaryBody);
+    try {
+      // Get THREE components safely
+      const THREE = window.THREE;
+      const FontLoader = window.FontLoader;
+      
+      if (!FontLoader) {
+        console.warn('FontLoader not available, Lagrange points will not have text labels');
+        return;
       }
-    });
+      
+      const fontLoader = new FontLoader();
+      fontLoader.load('https://cdn.jsdelivr.net/npm/three/examples/fonts/helvetiker_regular.typeface.json', 
+        // onLoad callback
+        (font) => {
+          this.font = font;
+          // If we already have bodies selected, recalculate with the font
+          if (this.primaryBody && this.secondaryBody) {
+            this.calculateLagrangePoints(this.primaryBody, this.secondaryBody);
+          }
+        },
+        // onProgress callback
+        undefined,
+        // onError callback
+        (err) => {
+          console.warn('Failed to load font for Lagrange point labels:', err);
+        }
+      );
+    } catch (error) {
+      console.error('Error loading font:', error);
+    }
   }
 
   /**
@@ -42,81 +62,97 @@ class LagrangePointVisualizer {
    * @param {CelestialObject} secondaryBody - Smaller body (e.g., Earth)
    */
   calculateLagrangePoints(primaryBody, secondaryBody) {
-    // Clear existing points
-    this.clearPoints();
-    
-    // Calculate mass ratio
-    const mu = secondaryBody.mass / (primaryBody.mass + secondaryBody.mass);
-    
-    // Calculate distance between bodies
-    const bodyVector = new THREE.Vector3().subVectors(
-      secondaryBody.position,
-      primaryBody.position
-    );
-    const r = bodyVector.length();
-    
-    // Calculate unit vectors
-    const unitRadial = bodyVector.clone().normalize();
-    
-    // Calculate perpendicular unit vector in the orbital plane
-    // First, pick a vector that's guaranteed not to be parallel to unitRadial
-    let randomVec;
-    if (Math.abs(unitRadial.x) < 0.9) {
-      randomVec = new THREE.Vector3(1, 0, 0);
-    } else {
-      randomVec = new THREE.Vector3(0, 1, 0);
+    if (!primaryBody || !secondaryBody) {
+      console.warn('Cannot calculate Lagrange points: Missing primary or secondary body');
+      return;
     }
     
-    // Now get a vector perpendicular to unitRadial
-    const unitPerpendicular = new THREE.Vector3()
-      .crossVectors(unitRadial, randomVec)
-      .normalize();
-    
-    // And then ensure it's in the orbital plane by taking cross product again
-    const unitNormal = new THREE.Vector3()
-      .crossVectors(unitRadial, unitPerpendicular)
-      .normalize();
-    
-    // Now unitPerpendicular is perpendicular to unitRadial in the orbital plane
-    
-    // Calculate L1 (between the two bodies)
-    const l1Distance = r * (1 - Math.pow(mu/3, 1/3));
-    const l1Position = primaryBody.position.clone().add(
-      unitRadial.clone().multiplyScalar(l1Distance)
-    );
-    
-    // Calculate L2 (beyond the secondary body)
-    const l2Distance = r * (1 + Math.pow(mu/3, 1/3));
-    const l2Position = primaryBody.position.clone().add(
-      unitRadial.clone().multiplyScalar(l2Distance)
-    );
-    
-    // Calculate L3 (behind the primary body)
-    const l3Distance = r * (1 + 5/12 * mu);
-    const l3Position = primaryBody.position.clone().add(
-      unitRadial.clone().multiplyScalar(-l3Distance)
-    );
-    
-    // Calculate L4 (60° ahead of secondary body)
-    const l4Position = primaryBody.position.clone()
-      .add(unitRadial.clone().multiplyScalar(r * 0.5))
-      .add(unitPerpendicular.clone().multiplyScalar(r * Math.sqrt(3)/2));
-    
-    // Calculate L5 (60° behind secondary body)
-    const l5Position = primaryBody.position.clone()
-      .add(unitRadial.clone().multiplyScalar(r * 0.5))
-      .add(unitPerpendicular.clone().multiplyScalar(-r * Math.sqrt(3)/2));
-    
-    // Create visualization for each point
-    this.createPointVisualization(l1Position, 'L1');
-    this.createPointVisualization(l2Position, 'L2');
-    this.createPointVisualization(l3Position, 'L3');
-    this.createPointVisualization(l4Position, 'L4');
-    this.createPointVisualization(l5Position, 'L5');
-    
-    // Store references to primary and secondary bodies
-    this.primaryBody = primaryBody;
-    this.secondaryBody = secondaryBody;
+    try {
+      // Get THREE safely
+      const THREE = window.THREE;
+      if (!THREE) {
+        console.error('THREE.js not available for Lagrange point calculation');
+        return;
+      }
+      
+      // Clear existing points
+      this.clearPoints();
+      
+      // Calculate mass ratio
+      const mu = secondaryBody.mass / (primaryBody.mass + secondaryBody.mass);
+      
+      // Calculate distance between bodies
+      const bodyVector = new THREE.Vector3().subVectors(
+        secondaryBody.position,
+        primaryBody.position
+      );
+      const r = bodyVector.length();
+      
+      // Calculate unit vectors
+      const unitRadial = bodyVector.clone().normalize();
+      
+      // Calculate perpendicular unit vector in the orbital plane
+      // First, pick a vector that's guaranteed not to be parallel to unitRadial
+      let randomVec;
+      if (Math.abs(unitRadial.x) < 0.9) {
+        randomVec = new THREE.Vector3(1, 0, 0);
+      } else {
+        randomVec = new THREE.Vector3(0, 1, 0);
+      }
+      
+      // Now get a vector perpendicular to unitRadial
+      const unitPerpendicular = new THREE.Vector3()
+        .crossVectors(unitRadial, randomVec)
+        .normalize();
+      
+      // And then ensure it's in the orbital plane by taking cross product again
+      const unitNormal = new THREE.Vector3()
+        .crossVectors(unitRadial, unitPerpendicular)
+        .normalize();
+      
+      // Now unitPerpendicular is perpendicular to unitRadial in the orbital plane
+      
+      // Calculate L1 (between the two bodies)
+      const l1Distance = r * (1 - Math.pow(mu/3, 1/3));
+      const l1Position = primaryBody.position.clone().add(
+        unitRadial.clone().multiplyScalar(l1Distance)
+      );
+      
+      // Calculate L2 (beyond the secondary body)
+      const l2Distance = r * (1 + Math.pow(mu/3, 1/3));
+      const l2Position = primaryBody.position.clone().add(
+        unitRadial.clone().multiplyScalar(l2Distance)
+      );
+      
+      // Calculate L3 (behind the primary body)
+      const l3Distance = r * (1 + 5/12 * mu);
+      const l3Position = primaryBody.position.clone().add(
+        unitRadial.clone().multiplyScalar(-l3Distance)
+      );
+      
+      // Calculate L4 (60° ahead of secondary body)
+      const l4Position = primaryBody.position.clone()
+        .add(unitRadial.clone().multiplyScalar(r * 0.5))
+        .add(unitPerpendicular.clone().multiplyScalar(r * Math.sqrt(3)/2));
+      
+      // Calculate L5 (60° behind secondary body)
+      const l5Position = primaryBody.position.clone()
+        .add(unitRadial.clone().multiplyScalar(r * 0.5))
+        .add(unitPerpendicular.clone().multiplyScalar(-r * Math.sqrt(3)/2));
+      
+      // Create visualization for each point
+      this.createPointVisualization(l1Position, 'L1');
+      this.createPointVisualization(l2Position, 'L2');
+      this.createPointVisualization(l3Position, 'L3');
+      this.createPointVisualization(l4Position, 'L4');
+      this.createPointVisualization(l5Position, 'L5');
+      
+      // Store references to primary and secondary bodies
+      this.primaryBody = primaryBody;
+      this.secondaryBody = secondaryBody;
+    } catch (error) {
+      console.error('Error calculating Lagrange points:', error);
+    }
   }
   
   /**
@@ -125,54 +161,67 @@ class LagrangePointVisualizer {
    * @param {String} label - Label for the point (L1-L5)
    */
   createPointVisualization(position, label) {
-    // Create point geometry
-    const geometry = new THREE.SphereGeometry(0.05 * this.visualScale(), 16, 16);
-    const material = new THREE.MeshBasicMaterial({ 
-      color: 0x00ffff,
-      transparent: true,
-      opacity: 0.8
-    });
-    
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
-    
-    // Add text label if font is loaded
-    let textMesh = null;
-    if (this.font) {
-      const textGeometry = new TextGeometry(label, {
-        font: this.font,
-        size: 0.1 * this.visualScale(),
-        height: 0.01 * this.visualScale()
+    try {
+      // Get THREE and TextGeometry safely
+      const THREE = window.THREE;
+      const TextGeometry = window.TextGeometry;
+      
+      if (!THREE) {
+        console.error('THREE.js not available for creating Lagrange point visualization');
+        return;
+      }
+      
+      // Create point geometry
+      const geometry = new THREE.SphereGeometry(0.05 * this.visualScale(), 16, 16);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.8
       });
       
-      const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(position);
       
-      // Center the text and offset it slightly from the point
-      textGeometry.computeBoundingBox();
-      const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
-      textMesh.position.copy(position).add(
-        new THREE.Vector3(
-          -textWidth / 2 + 0.2 * this.visualScale(), 
-          0.2 * this.visualScale(), 
-          0
-        )
-      );
+      // Add text label if font is loaded
+      let textMesh = null;
+      if (this.font && TextGeometry) {
+        const textGeometry = new TextGeometry(label, {
+          font: this.font,
+          size: 0.1 * this.visualScale(),
+          height: 0.01 * this.visualScale()
+        });
+        
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        
+        // Center the text and offset it slightly from the point
+        textGeometry.computeBoundingBox();
+        const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+        textMesh.position.copy(position).add(
+          new THREE.Vector3(
+            -textWidth / 2 + 0.2 * this.visualScale(), 
+            0.2 * this.visualScale(), 
+            0
+          )
+        );
+      }
+      
+      // Add to scene if visible
+      if (this.visible) {
+        this.scene.add(mesh);
+        if (textMesh) this.scene.add(textMesh);
+      }
+      
+      // Store reference
+      this.lagrangePoints.push({
+        point: mesh,
+        label: textMesh,
+        position: position.clone(),
+        type: label
+      });
+    } catch (error) {
+      console.error('Error creating Lagrange point visualization:', error);
     }
-    
-    // Add to scene if visible
-    if (this.visible) {
-      this.scene.add(mesh);
-      if (textMesh) this.scene.add(textMesh);
-    }
-    
-    // Store reference
-    this.lagrangePoints.push({
-      point: mesh,
-      label: textMesh,
-      position: position.clone(),
-      type: label
-    });
   }
   
   /**
@@ -182,13 +231,21 @@ class LagrangePointVisualizer {
   visualScale() {
     if (!this.primaryBody || !this.secondaryBody) return 1;
     
-    const distance = new THREE.Vector3().subVectors(
-      this.secondaryBody.position,
-      this.primaryBody.position
-    ).length();
-    
-    // Adjust scale to be proportional to distance
-    return Math.max(1, distance / 20);
+    try {
+      const THREE = window.THREE;
+      if (!THREE) return 1;
+      
+      const distance = new THREE.Vector3().subVectors(
+        this.secondaryBody.position,
+        this.primaryBody.position
+      ).length();
+      
+      // Adjust scale to be proportional to distance
+      return Math.max(1, distance / 20);
+    } catch (error) {
+      console.error('Error calculating visual scale:', error);
+      return 1;
+    }
   }
   
   /**
@@ -197,37 +254,44 @@ class LagrangePointVisualizer {
   update() {
     if (!this.primaryBody || !this.secondaryBody) return;
     
-    // Only recalculate if bodies have moved significantly
-    const currentVector = new THREE.Vector3().subVectors(
-      this.secondaryBody.position,
-      this.primaryBody.position
-    );
-    
-    // Store previous positions for comparison
-    if (!this.prevPrimaryPos) {
-      this.prevPrimaryPos = this.primaryBody.position.clone();
-    }
-    
-    if (!this.prevSecondaryPos) {
-      this.prevSecondaryPos = this.secondaryBody.position.clone();
-    }
-    
-    // Check if positions have changed significantly
-    const primaryMoved = new THREE.Vector3()
-      .subVectors(this.primaryBody.position, this.prevPrimaryPos)
-      .lengthSq() > 0.1;
-    
-    const secondaryMoved = new THREE.Vector3()
-      .subVectors(this.secondaryBody.position, this.prevSecondaryPos)
-      .lengthSq() > 0.1;
-    
-    // If either body has moved significantly, recalculate
-    if (primaryMoved || secondaryMoved) {
-      this.calculateLagrangePoints(this.primaryBody, this.secondaryBody);
+    try {
+      const THREE = window.THREE;
+      if (!THREE) return;
       
-      // Update previous positions
-      this.prevPrimaryPos.copy(this.primaryBody.position);
-      this.prevSecondaryPos.copy(this.secondaryBody.position);
+      // Only recalculate if bodies have moved significantly
+      const currentVector = new THREE.Vector3().subVectors(
+        this.secondaryBody.position,
+        this.primaryBody.position
+      );
+      
+      // Store previous positions for comparison
+      if (!this.prevPrimaryPos) {
+        this.prevPrimaryPos = this.primaryBody.position.clone();
+      }
+      
+      if (!this.prevSecondaryPos) {
+        this.prevSecondaryPos = this.secondaryBody.position.clone();
+      }
+      
+      // Check if positions have changed significantly
+      const primaryMoved = new THREE.Vector3()
+        .subVectors(this.primaryBody.position, this.prevPrimaryPos)
+        .lengthSq() > 0.1;
+      
+      const secondaryMoved = new THREE.Vector3()
+        .subVectors(this.secondaryBody.position, this.prevSecondaryPos)
+        .lengthSq() > 0.1;
+      
+      // If either body has moved significantly, recalculate
+      if (primaryMoved || secondaryMoved) {
+        this.calculateLagrangePoints(this.primaryBody, this.secondaryBody);
+        
+        // Update previous positions
+        this.prevPrimaryPos.copy(this.primaryBody.position);
+        this.prevSecondaryPos.copy(this.secondaryBody.position);
+      }
+    } catch (error) {
+      console.error('Error updating Lagrange points:', error);
     }
   }
   
@@ -239,12 +303,16 @@ class LagrangePointVisualizer {
     this.visible = visible;
     
     this.lagrangePoints.forEach(point => {
-      if (visible) {
-        this.scene.add(point.point);
-        if (point.label) this.scene.add(point.label);
-      } else {
-        this.scene.remove(point.point);
-        if (point.label) this.scene.remove(point.label);
+      try {
+        if (visible) {
+          this.scene.add(point.point);
+          if (point.label) this.scene.add(point.label);
+        } else {
+          this.scene.remove(point.point);
+          if (point.label) this.scene.remove(point.label);
+        }
+      } catch (error) {
+        console.error('Error setting Lagrange point visibility:', error);
       }
     });
   }
@@ -254,14 +322,18 @@ class LagrangePointVisualizer {
    */
   clearPoints() {
     this.lagrangePoints.forEach(point => {
-      this.scene.remove(point.point);
-      if (point.label) this.scene.remove(point.label);
-      
-      if (point.point.geometry) point.point.geometry.dispose();
-      if (point.point.material) point.point.material.dispose();
-      
-      if (point.label && point.label.geometry) point.label.geometry.dispose();
-      if (point.label && point.label.material) point.label.material.dispose();
+      try {
+        this.scene.remove(point.point);
+        if (point.label) this.scene.remove(point.label);
+        
+        if (point.point.geometry) point.point.geometry.dispose();
+        if (point.point.material) point.point.material.dispose();
+        
+        if (point.label && point.label.geometry) point.label.geometry.dispose();
+        if (point.label && point.label.material) point.label.material.dispose();
+      } catch (error) {
+        console.error('Error clearing Lagrange point:', error);
+      }
     });
     
     this.lagrangePoints = [];
@@ -278,5 +350,8 @@ class LagrangePointVisualizer {
   }
 }
 
-// Export using CommonJS syntax
+// Make available to the window context
+window.LagrangePointVisualizer = LagrangePointVisualizer;
+
+// Export using CommonJS syntax for compatibility
 module.exports = LagrangePointVisualizer;
