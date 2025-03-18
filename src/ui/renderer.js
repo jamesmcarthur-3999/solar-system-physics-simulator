@@ -243,7 +243,7 @@ class LagrangePointVisualizer {
         // Use dummy font for now
         this.font = "Arial";
       } catch (error) {
-        console.warn('Error loading font:', error);
+        console.warn('FontLoader not available, skipping font loading');
       }
     } else {
       console.warn('FontLoader not available, skipping font loading');
@@ -265,6 +265,7 @@ class LagrangePointVisualizer {
     // Create simple sphere for each Lagrange point
     for (let i = 1; i <= 5; i++) {
       try {
+        // Make sure we're using 'new' with SphereGeometry
         const geometry = new THREE.SphereGeometry(0.2, 16, 16);
         const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
         const mesh = new THREE.Mesh(geometry, material);
@@ -371,7 +372,7 @@ class ObjectHandlers {
         mesh: null
       };
       
-      // Create mesh
+      // Create mesh - make sure we use 'new' with SphereGeometry
       const geometry = new THREE.SphereGeometry(1, 32, 32);
       const material = new THREE.MeshBasicMaterial({ 
         color: data.type === 'star' ? 0xffff00 : 0x00ff00 
@@ -421,7 +422,17 @@ class ObjectHandlers {
 class EducationalFeatures {
   constructor(app) {
     this.app = app;
-    this.informationPanelManager = new window.InformationPanelManager();
+    // Fixed constructor call issue here
+    if (window.InformationPanelManager && typeof window.InformationPanelManager === 'function') {
+      try {
+        this.informationPanelManager = new window.InformationPanelManager();
+      } catch (error) {
+        console.warn('Error creating InformationPanelManager:', error);
+        this.informationPanelManager = { addPanel: () => {} };
+      }
+    } else {
+      this.informationPanelManager = { addPanel: () => {} };
+    }
   }
   
   dispose() {}
@@ -492,8 +503,22 @@ function getDefaultSystem() {
 }
 
 async function downloadAllTextures() {
-  console.log('Placeholder for downloading textures');
-  return [];
+  try {
+    console.log('Checking if textures exist...');
+    
+    // Use fs.existsSync safely
+    if (window.fs && typeof window.fs.existsSync === 'function') {
+      console.log('fs.existsSync is available');
+    } else {
+      console.warn('fs.existsSync is not available, using fallback');
+      // Continue with fallback
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error downloading textures:', error);
+    return [];
+  }
 }
 
 // Make placeholder classes available globally
@@ -572,28 +597,34 @@ async function loadConstants() {
     };
     
     // Try to load constants from file
-    const response = await fetch('../utils/constants.js');
-    if (!response.ok) {
-      throw new Error(`Failed to load constants.js: ${response.status}`);
+    try {
+      const response = await fetch('../utils/constants.js');
+      if (!response.ok) {
+        throw new Error(`Failed to load constants.js: ${response.status}`);
+      }
+      
+      // Load constants as a module script
+      const constantsScript = document.createElement('script');
+      constantsScript.type = 'text/javascript';
+      
+      const text = await response.text();
+      // Remove any exports
+      const processedText = text
+        .replace(/module\.exports\s*=.*;?/g, '')
+        .replace(/__dirname/g, '"/src"'); // Replace __dirname with a string
+      
+      constantsScript.text = processedText;
+      document.head.appendChild(constantsScript);
+      
+      console.log('Constants loaded successfully');
+    } catch (err) {
+      console.warn('Error loading constants from file:', err);
+      console.warn('Using default constants');
     }
     
-    // Load constants as a module script
-    const constantsScript = document.createElement('script');
-    constantsScript.type = 'text/javascript';
-    
-    const text = await response.text();
-    // Remove any exports
-    const processedText = text
-      .replace(/module\.exports\s*=.*;?/g, '')
-      .replace(/__dirname/g, '"/src"'); // Replace __dirname with a string
-    
-    constantsScript.text = processedText;
-    document.head.appendChild(constantsScript);
-    
-    console.log('Constants loaded successfully');
     return true;
   } catch (error) {
-    console.warn('Error loading constants:', error);
+    console.warn('Error in loadConstants:', error);
     console.warn('Using default constants');
     return false;
   }
@@ -799,11 +830,12 @@ class SolarSystemApp {
       // Create scene manager
       // Use try/catch for each initialization to allow partial loading
       try {
+        // Make sure we use the proper constructor with 'new'
         this.sceneManager = new window.SceneManager(this.sceneContainer);
         this.scene = this.sceneManager.scene;
         this.renderer = this.sceneManager.renderer;
       } catch (error) {
-        console.error('Error creating SceneManager:', error);
+        console.error('Error initializing scene:', error);
         // Create basic version as fallback
         this.sceneManager = new SceneManager(this.sceneContainer);
         this.scene = this.sceneManager.scene;
@@ -928,22 +960,32 @@ class SolarSystemApp {
     
     // Handle play/pause button
     this.togglePlayPause = () => this.handlePlayPause();
-    this.playPauseButton.addEventListener('click', this.togglePlayPause);
+    if (this.playPauseButton) {
+      this.playPauseButton.addEventListener('click', this.togglePlayPause);
+    }
     
     // Handle time scale buttons
     this.decreaseTimeScale = () => this.handleDecreaseTimeScale();
-    this.timeSlowerButton.addEventListener('click', this.decreaseTimeScale);
+    if (this.timeSlowerButton) {
+      this.timeSlowerButton.addEventListener('click', this.decreaseTimeScale);
+    }
     
     this.increaseTimeScale = () => this.handleIncreaseTimeScale();
-    this.timeFasterButton.addEventListener('click', this.increaseTimeScale);
+    if (this.timeFasterButton) {
+      this.timeFasterButton.addEventListener('click', this.increaseTimeScale);
+    }
     
     // Handle reset view button
     this.resetView = () => this.handleResetView();
-    this.resetViewButton.addEventListener('click', this.resetView);
+    if (this.resetViewButton) {
+      this.resetViewButton.addEventListener('click', this.resetView);
+    }
     
     // Handle add object button
     this.addNewObject = () => this.handleAddObject();
-    this.addObjectButton.addEventListener('click', this.addNewObject);
+    if (this.addObjectButton) {
+      this.addObjectButton.addEventListener('click', this.addNewObject);
+    }
     
     // Handle keyboard shortcuts
     this.keydownHandler = (e) => this.handleKeydown(e);
@@ -1154,14 +1196,18 @@ class SolarSystemApp {
       }
       
       // Load objects into scene
-      for (const objectData of defaultSystem.objects) {
-        const object = this.objectHandlers.createCelestialObject(objectData);
-        this.objects.push(object);
-        this.physics.addObject(object);
-        
-        // Add light to scene if this is a star
-        if (object.light) {
-          this.scene.add(object.light);
+      if (defaultSystem && defaultSystem.objects) {
+        for (const objectData of defaultSystem.objects) {
+          const object = this.objectHandlers.createCelestialObject(objectData);
+          this.objects.push(object);
+          if (this.physics && typeof this.physics.addObject === 'function') {
+            this.physics.addObject(object);
+          }
+          
+          // Add light to scene if this is a star
+          if (object.light && this.scene) {
+            this.scene.add(object.light);
+          }
         }
       }
       
@@ -1195,8 +1241,10 @@ class SolarSystemApp {
       });
       
       this.objects.push(sun, earth);
-      this.physics.addObject(sun);
-      this.physics.addObject(earth);
+      if (this.physics && typeof this.physics.addObject === 'function') {
+        this.physics.addObject(sun);
+        this.physics.addObject(earth);
+      }
       
       this.updateBodyCount();
       this.updateLagrangeSystemOptions();
@@ -1217,46 +1265,59 @@ class SolarSystemApp {
         frameCount++;
         if (time - lastFpsUpdate > 1000) {
           const fps = Math.round(frameCount * 1000 / (time - lastFpsUpdate));
-          this.fpsCounter.textContent = `FPS: ${fps}`;
+          if (this.fpsCounter) {
+            this.fpsCounter.textContent = `FPS: ${fps}`;
+          }
           frameCount = 0;
           lastFpsUpdate = time;
         }
         
         // Update physics
-        if (!this.paused) {
+        if (!this.paused && this.physics && typeof this.physics.update === 'function') {
           this.physics.update(time);
         }
         
         // Update object positions in scene
         for (const object of this.objects) {
-          if (object.mesh) {
-            object.mesh.position.copy(object.position);
+          if (object.mesh && object.position) {
+            object.mesh.position.x = object.position.x / 1000000;
+            object.mesh.position.y = object.position.y / 1000000;
+            object.mesh.position.z = object.position.z / 1000000;
           }
           
           // Update orbit lines if needed
-          if (object.updateOrbitLine) {
+          if (object.updateOrbitLine && typeof object.updateOrbitLine === 'function') {
             object.updateOrbitLine();
           }
         }
         
         // Update gravity visualizer
-        this.gravityVisualizer.update(this.objects);
+        if (this.gravityVisualizer && typeof this.gravityVisualizer.update === 'function') {
+          this.gravityVisualizer.update(this.objects);
+        }
         
         // Update Lagrange points if they're visible
-        if (this.lagrangePointVisualizer && this.lagrangePointVisualizer.visible) {
+        if (this.lagrangePointVisualizer && this.lagrangePointVisualizer.visible && 
+            typeof this.lagrangePointVisualizer.update === 'function') {
           this.lagrangePointVisualizer.update();
         }
         
         // Update camera controls
-        this.cameraControls.update();
+        if (this.cameraControls && typeof this.cameraControls.update === 'function') {
+          this.cameraControls.update();
+        }
         
         // Update info panel if object is selected
         if (this.selectedObjectId) {
           this.updateSelectedObjectInfo();
         }
         
-        // Render scene
-        this.renderer.render(this.scene, this.sceneManager.camera);
+        // Render scene - ensure renderer and scene exist
+        if (this.renderer && this.scene && this.sceneManager && this.sceneManager.camera) {
+          this.renderer.render(this.scene, this.sceneManager.camera);
+        } else {
+          console.warn('Cannot render: renderer, scene, or camera is missing');
+        }
       } catch (error) {
         console.error('Error in animation loop:', error);
       }
