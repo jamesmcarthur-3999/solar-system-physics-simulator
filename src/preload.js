@@ -1,3 +1,8 @@
+/**
+ * Solar System Simulator - Preload Script
+ * Handles secure bridging between Node.js and the renderer process.
+ */
+
 // All Node.js APIs are available in the preload process
 // It has the same sandbox as a Chrome extension
 const { contextBridge, ipcRenderer } = require('electron');
@@ -102,9 +107,9 @@ contextBridge.exposeInMainWorld('api', {
 // Expose application paths to the renderer process
 contextBridge.exposeInMainWorld('appPath', {
   // Provide asset path to allow proper texture loading
-  assetsPath: path.join(__dirname, '../assets').replace(/\\/g, '/'),
+  assetsPath: path.join(__dirname, '../assets').replace(/\\\\/g, '/'),
   // Also provide the application root path for more flexibility
-  rootPath: path.join(__dirname, '..').replace(/\\/g, '/')
+  rootPath: path.join(__dirname, '..').replace(/\\\\/g, '/')
 });
 
 // Expose file system functions
@@ -113,7 +118,7 @@ contextBridge.exposeInMainWorld('fs', {
   writeFile: (filePath, data, options) => fs.promises.writeFile(filePath, data, options),
   readdir: (dirPath, options) => fs.promises.readdir(dirPath, options),
   exists: (path) => fs.existsSync(path),
-  existsSync: (path) => fs.existsSync(path) // Adding this missing function
+  existsSync: (path) => fs.existsSync(path) // Making sure this function is available
 });
 
 // Expose path module functions
