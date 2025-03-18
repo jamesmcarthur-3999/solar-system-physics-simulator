@@ -42,17 +42,35 @@ const EARTH = {
 // Texture paths
 const TEXTURE_PATH = '../assets/textures/';
 
-// Export all constants
-window.CONSTANTS = {
-  G,
-  AU,
-  SECONDS_PER_DAY,
-  DISTANCE_SCALE,
-  SIZE_SCALE,
-  ORBIT_SEGMENTS,
-  DEFAULT_TIME_SCALE,
-  ORBIT_COLORS,
-  SUN_MASS,
-  EARTH,
-  TEXTURE_PATH
-};
+// Export all constants for both browser and Node.js environments
+if (typeof window !== 'undefined') {
+  window.CONSTANTS = {
+    G,
+    AU,
+    SECONDS_PER_DAY,
+    DISTANCE_SCALE,
+    SIZE_SCALE,
+    ORBIT_SEGMENTS,
+    DEFAULT_TIME_SCALE,
+    ORBIT_COLORS,
+    SUN_MASS,
+    EARTH,
+    TEXTURE_PATH
+  };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    G,
+    AU,
+    SECONDS_PER_DAY,
+    DISTANCE_SCALE,
+    SIZE_SCALE,
+    ORBIT_SEGMENTS,
+    DEFAULT_TIME_SCALE,
+    ORBIT_COLORS,
+    SUN_MASS,
+    EARTH,
+    TEXTURE_PATH
+  };
+}
