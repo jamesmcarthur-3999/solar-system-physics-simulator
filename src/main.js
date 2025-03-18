@@ -3,6 +3,11 @@ const { app, BrowserWindow, protocol, crashReporter } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Error handling for uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
 // Disable crash reporter to avoid "not connected" errors
 app.commandLine.appendSwitch('disable-crash-reporter');
 crashReporter.start({ uploadToServer: false });
@@ -13,14 +18,7 @@ app.disableHardwareAcceleration();
 // Add specific flags to help with rendering issues
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
-app.commandLine.appendSwitch('disable-gpu-compositing');
-app.commandLine.appendSwitch('disable-gpu-vsync');
-
-// Handle uncaught exceptions that might be related to crashpad
-process.on('uncaughtException', (error) => {
-  // Log all errors during development
-  console.error('Uncaught Exception:', error);
-});
+app.commandLine.appendSwitch('no-sandbox');
 
 // Keep a global reference of the window object to prevent it from being garbage collected
 let mainWindow;
@@ -32,63 +30,120 @@ function createWindow() {
     callback({ path: path.normalize(`${__dirname}/${url}`) });
   });
 
-  // Create the browser window
+  console.log("Creating main window...");
+
+  // Create the browser window with minimal options first
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
-    minWidth: 800,
-    minHeight: 600,
+    show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
       nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false, // Need to disable sandbox for proper preload
+      webSecurity: false, // Allow loading local resources
       enableRemoteModule: false,
-      // Allow loading files from local filesystem
-      webSecurity: false,
-      // Allow ES modules in the renderer process
-      worldSafeExecuteJavaScript: true,
-      // Important: This allows the preload script to work with imported modules
-      sandbox: false
-    },
-    show: false
+      preload: path.join(__dirname, 'minimal-preload.js') // Use a minimal preload
+    }
   });
 
-  // Create HTML file path using proper path resolution
+  // Check if index.html exists
   const indexPath = path.join(__dirname, 'ui', 'index.html');
-  
-  // Check if the file exists before loading
+  console.log(`Index file exists at: ${indexPath}`);
   if (!fs.existsSync(indexPath)) {
-    console.error(`ERROR: Index file does not exist at: ${indexPath}`);
-    // Try to list the directory contents to debug
-    try {
-      const dirPath = path.join(__dirname, 'ui');
-      if (fs.existsSync(dirPath)) {
-        console.log(`Contents of ui directory: ${fs.readdirSync(dirPath).join(', ')}`);
-      } else {
-        console.error(`UI directory does not exist at: ${dirPath}`);
-      }
-    } catch (err) {
-      console.error('Error checking directory:', err);
-    }
-  } else {
-    console.log(`Index file exists at: ${indexPath}`);
+    console.error(`Error: index.html file not found at ${indexPath}`);
+    app.quit();
+    return;
   }
 
-  // Use file:// protocol with properly formatted path
-  const fileUrl = `file://${indexPath.replace(/\\/g, '/')}`;
-  console.log(`Loading URL: ${fileUrl}`);
+  // Create a minimal preload script if it doesn't exist
+  const minimalPreloadPath = path.join(__dirname, 'minimal-preload.js');
+  if (!fs.existsSync(minimalPreloadPath)) {
+    console.log('Creating minimal preload script...');
+    const minimalPreloadContent = `
+      // Minimal preload script that only exposes console functions
+      const { contextBridge } = require('electron');
+      
+      // Expose a minimal API to the renderer
+      contextBridge.exposeInMainWorld('electronAPI', {
+        // Add minimal functionality here
+        log: (message) => console.log(message),
+        error: (message) => console.error(message)
+      });
+      
+      console.log('Minimal preload script loaded');
+    `;
+    
+    fs.writeFileSync(minimalPreloadPath, minimalPreloadContent);
+  }
+
+  // Create a very basic HTML file for testing
+  const testHtmlPath = path.join(__dirname, 'test.html');
+  if (!fs.existsSync(testHtmlPath)) {
+    console.log('Creating test HTML file...');
+    const testHtmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Test Page</title>
+        <style>
+          body { 
+            background: #000; 
+            color: #fff; 
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+          }
+          .content {
+            text-align: center;
+            padding: 20px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="content">
+          <h1>Test Page</h1>
+          <p>If you can see this, Electron is working correctly.</p>
+          <p>This is a minimal test page without any scripts or complex elements.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    fs.writeFileSync(testHtmlPath, testHtmlContent);
+  }
+
+  // Try loading the test HTML file first
+  const fileUrl = `file://${testHtmlPath.replace(/\\/g, '/')}`;
+  console.log(`Loading test URL: ${fileUrl}`);
   
-  // and load the index.html of the app
   mainWindow.loadURL(fileUrl)
     .then(() => {
-      console.log('Main window loaded successfully');
+      console.log('Test page loaded successfully');
+      // After successful load, show the window and try to navigate to the real page
+      mainWindow.show();
+      
+      // After a short delay, try loading the actual page
+      setTimeout(() => {
+        const indexUrl = `file://${indexPath.replace(/\\/g, '/')}`;
+        console.log(`Now trying to load index URL: ${indexUrl}`);
+        mainWindow.loadURL(indexUrl)
+          .then(() => {
+            console.log('Main index page loaded successfully');
+          })
+          .catch(err => {
+            console.error('Error loading main index page:', err);
+          });
+      }, 3000);
     })
     .catch(err => {
-      console.error('Error loading main window:', err);
+      console.error('Error loading test page:', err);
     });
-
-  // Open the DevTools in development mode
-  mainWindow.webContents.openDevTools();
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
@@ -96,9 +151,12 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // Open DevTools for debugging
+  mainWindow.webContents.openDevTools();
+
   // Log renderer process errors
   mainWindow.webContents.on('render-process-gone', (event, details) => {
-    console.error('Renderer process gone:', details.reason);
+    console.error('Render process gone:', details.reason);
   });
 
   // Emitted when the window is closed
@@ -106,20 +164,13 @@ function createWindow() {
     // Dereference the window object
     mainWindow = null;
   });
-  
-  // Handle webContents creation for security
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    // Only allow navigation to local files
-    if (!url.startsWith('file://')) {
-      event.preventDefault();
-    }
-  });
 }
 
-// Allow loading local ES modules in the renderer process
+// Allow loading local files
+app.commandLine.appendSwitch('allow-file-access-from-files');
 app.commandLine.appendSwitch('allow-insecure-localhost');
-app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer');
-// Set NODE_ENV to development to enable debugging features
+
+// Set NODE_ENV to development for debugging
 process.env.NODE_ENV = 'development';
 
 // Add better logging for app startup
@@ -154,7 +205,7 @@ app.on('window-all-closed', () => {
 
 // Log any app errors
 app.on('render-process-gone', (event, webContents, details) => {
-  console.error('Render process gone:', details.reason);
+  console.error('Renderer process gone:', details.reason);
 });
 
 app.on('gpu-process-gone', (event, details) => {
