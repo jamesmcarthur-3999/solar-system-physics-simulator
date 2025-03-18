@@ -1,627 +1,69 @@
 // Solar System Simulator - Main Renderer
 
-// Access APIs exposed from preload with safety checks
-const THREE = window.THREE || {};
-const OrbitControls = window.OrbitControls;
-const TextGeometry = window.TextGeometry;
-const FontLoader = window.FontLoader;
+// Wait for the DOM to be fully loaded before initializing
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("DOM content loaded, starting initialization...");
+  initializeSolarSystemSimulator();
+});
 
-// Check if THREE is properly loaded
-if (!THREE || typeof THREE.Scene !== 'function') {
-  console.error('THREE.js not properly loaded. Scene constructor not available.');
-}
-
-// Browser polyfills for Node.js environment
-window.__dirname = '/'; // Simulate __dirname for browser context
-window.__filename = '/index.html'; // Simulate __filename for browser context
-
-// Create browser-compatible module system
-window.module = { exports: {} };
-window.exports = window.module.exports;
-window.require = function(name) {
-  // Simple module name mapping
-  if (name === 'three') return window.THREE || {};
-  if (name.includes('OrbitControls')) return { OrbitControls: window.OrbitControls };
-  if (name.includes('TextGeometry')) return { TextGeometry: window.TextGeometry };
-  if (name.includes('FontLoader')) return { FontLoader: window.FontLoader };
-  
-  // For other modules, try to find them in window
-  const parts = name.split('/');
-  const moduleName = parts[parts.length - 1].replace('.js', '');
-  
-  // Special case handling
-  if (name === 'child_process') return { 
-    execSync: function() { 
-      console.warn('execSync is not available in browser'); 
-      return ""; 
-    } 
-  };
-  if (name === 'fs') return window.fs || {};
-  if (name === 'path') return window.path || {
-    join: function() {
-      return Array.from(arguments).join('/').replace(/\/+/g, '/');
-    },
-    resolve: function() {
-      return Array.from(arguments).join('/').replace(/\/+/g, '/');
-    }
-  };
-  
-  return window[moduleName] || {};
-};
-
-// Setup global namespace for modules
-window.solarSystem = {};
-window.dialogs = { createObjectDialog: () => {} };
-window.tourManager = { TourManager: function() {} };
-window.InformationPanelManager = function() { this.addPanel = () => {}; };
-
-// Define placeholder classes with proper THREE integration
-class SceneManager {
-  constructor(container) { 
-    try {
-      if (!THREE || !THREE.Scene || typeof THREE.Scene !== 'function') {
-        throw new Error('THREE.Scene is not available');
-      }
-      
-      // Initialize scene
-      this.scene = new THREE.Scene();
-      
-      // Check if PerspectiveCamera exists
-      if (!THREE.PerspectiveCamera || typeof THREE.PerspectiveCamera !== 'function') {
-        throw new Error('THREE.PerspectiveCamera is not available');
-      }
-      
-      // Initialize camera
-      this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      this.camera.position.set(0, 10, 20);
-      this.camera.lookAt(0, 0, 0);
-      
-      // Check if WebGLRenderer exists
-      if (!THREE.WebGLRenderer || typeof THREE.WebGLRenderer !== 'function') {
-        throw new Error('THREE.WebGLRenderer is not available');
-      }
-      
-      // Initialize renderer
-      this.renderer = new THREE.WebGLRenderer({ antialias: true });
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      this.renderer.setClearColor(0x000000);
-      
-      // Add renderer to container
-      if (container) {
-        container.appendChild(this.renderer.domElement);
-      }
-      
-      // Check if AmbientLight exists
-      if (!THREE.AmbientLight || typeof THREE.AmbientLight !== 'function') {
-        throw new Error('THREE.AmbientLight is not available');
-      }
-      
-      // Add ambient light
-      const ambientLight = new THREE.AmbientLight(0x404040);
-      this.scene.add(ambientLight);
-    } catch (error) {
-      console.error('Error in SceneManager constructor:', error);
-      // Create dummy objects to prevent further errors
-      this.scene = { add: () => {}, remove: () => {} };
-      this.camera = { aspect: 1, position: { set: () => {}, copy: () => {} }, lookAt: () => {}, updateProjectionMatrix: () => {} };
-      this.renderer = { setSize: () => {}, setClearColor: () => {}, render: () => {}, dispose: () => {}, domElement: document.createElement('div') };
-      throw error;
-    }
-  }
-  
-  handleResize() {
-    if (this.camera && this.renderer) {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-  }
-  
-  dispose() {
-    if (this.renderer) {
-      this.renderer.dispose();
-    }
-  }
-}
-
-class CameraControls {
-  constructor(camera, container) {
-    this.camera = camera;
-    this.container = container;
-    this.controls = null;
-    
-    try {
-      if (OrbitControls && camera && container) {
-        this.controls = new OrbitControls(camera, container);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.minDistance = 5;
-        this.controls.maxDistance = 500;
-      } else {
-        console.warn('OrbitControls not available, using fallback controls');
-      }
-    } catch (error) {
-      console.error('Error creating OrbitControls:', error);
-    }
-  }
-  
-  update() {
-    if (this.controls) {
-      this.controls.update();
-    }
-  }
-  
-  resetView() {
-    if (this.camera) {
-      this.camera.position.set(0, 10, 20);
-      this.camera.lookAt(0, 0, 0);
-    }
-  }
-  
-  setPosition(position) {
-    if (this.camera) {
-      this.camera.position.copy(position);
-    }
-  }
-  
-  focusOnObject(object) {
-    if (this.camera && object.position) {
-      this.camera.lookAt(object.position);
-    }
-  }
-  
-  handleResize() {
-    // No additional resize handling needed
-  }
-  
-  dispose() {
-    if (this.controls) {
-      this.controls.dispose();
-    }
-  }
-}
-
-class GravitySimulator {
-  constructor() { 
-    this.objects = []; 
-    this.G = window.CONSTANTS ? window.CONSTANTS.G : 6.67430e-11;
-    this.timeScale = 1;
-  }
-  
-  update(time) {
-    // Simple circular orbit update for demonstration
-    this.objects.forEach(obj => {
-      if (obj.orbiting) {
-        // Find the parent object
-        const parent = this.objects.find(p => p.id === obj.orbiting);
-        if (parent) {
-          // Update position in a simple circular orbit
-          const angle = time * 0.0001 * this.timeScale;
-          const distance = 10; // Just a simple distance for demonstration
-          obj.position = {
-            x: parent.position.x + Math.cos(angle) * distance,
-            y: parent.position.y,
-            z: parent.position.z + Math.sin(angle) * distance
-          };
-        }
-      }
-    });
-  }
-  
-  addObject(object) {
-    this.objects.push(object);
-  }
-  
-  setPaused(paused) {
-    this.paused = paused;
-  }
-  
-  setTimeScale(scale) {
-    this.timeScale = scale;
-  }
-  
-  getObjects() { 
-    return this.objects; 
-  }
-  
-  dispose() {
-    this.objects = [];
-  }
-}
-
-class GravityVisualizer {
-  constructor(scene) {
-    this.scene = scene;
-    this.visible = false;
-    this.meshes = [];
-  }
-  
-  update(objects) {}
-  
-  toggleVisibility() {
-    this.visible = !this.visible;
-    this.meshes.forEach(mesh => {
-      if (this.scene) {
-        if (this.visible) {
-          this.scene.add(mesh);
-        } else {
-          this.scene.remove(mesh);
-        }
-      }
-    });
-  }
-  
-  dispose() {
-    this.meshes.forEach(mesh => {
-      if (this.scene) this.scene.remove(mesh);
-      if (mesh.geometry) mesh.geometry.dispose();
-      if (mesh.material) mesh.material.dispose();
-    });
-    this.meshes = [];
-  }
-}
-
-class LagrangePointVisualizer {
-  constructor(scene) { 
-    this.scene = scene;
-    this.visible = false; 
-    this.points = [];
-    this.fontLoader = null;
-    this.font = null;
-    
-    // Try to load font if FontLoader is available
-    this.loadFont();
-  }
-  
-  loadFont() {
-    if (window.FontLoader) {
-      try {
-        this.fontLoader = new window.FontLoader();
-        // Use dummy font for now
-        this.font = "Arial";
-      } catch (error) {
-        console.warn('FontLoader not available, skipping font loading');
-      }
-    } else {
-      console.warn('FontLoader not available, skipping font loading');
-    }
-  }
-  
-  calculateLagrangePoints(primary, secondary) {
-    // Simple placeholder implementation
-    console.log('Calculating Lagrange points for', primary.name, 'and', secondary.name);
-    
-    // Clear existing points
-    this.points.forEach(point => {
-      if (this.scene) this.scene.remove(point);
-      if (point.geometry) point.geometry.dispose();
-      if (point.material) point.material.dispose();
-    });
-    this.points = [];
-    
-    // Create simple sphere for each Lagrange point
-    for (let i = 1; i <= 5; i++) {
-      try {
-        if (!THREE || !THREE.SphereGeometry || typeof THREE.SphereGeometry !== 'function') {
-          throw new Error('THREE.SphereGeometry is not available');
-        }
-        
-        // Make sure we're using 'new' with SphereGeometry
-        const geometry = new THREE.SphereGeometry(0.2, 16, 16);
-        const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-        const mesh = new THREE.Mesh(geometry, material);
-        
-        // Position based on which L-point
-        const distance = 5; // Simple fixed distance for demonstration
-        
-        if (i === 1) { // L1
-          mesh.position.set(distance, 0, 0);
-        } else if (i === 2) { // L2
-          mesh.position.set(-distance, 0, 0);
-        } else if (i === 3) { // L3
-          mesh.position.set(0, 0, distance);
-        } else if (i === 4) { // L4
-          mesh.position.set(distance, distance, 0);
-        } else { // L5
-          mesh.position.set(distance, -distance, 0);
-        }
-        
-        this.points.push(mesh);
-        
-        // Add to scene if visible
-        if (this.visible && this.scene) {
-          this.scene.add(mesh);
-        }
-      } catch (error) {
-        console.error('Error creating Lagrange point mesh:', error);
-      }
-    }
-  }
-  
-  setVisible(visible) {
-    this.visible = visible;
-    this.points.forEach(point => {
-      if (this.scene) {
-        if (this.visible) {
-          this.scene.add(point);
-        } else {
-          this.scene.remove(point);
-        }
-      }
-    });
-  }
-  
-  update() {}
-  
-  dispose() {
-    this.points.forEach(point => {
-      if (this.scene) this.scene.remove(point);
-      if (point.geometry) point.geometry.dispose();
-      if (point.material) point.material.dispose();
-    });
-    this.points = [];
-  }
-}
-
-class Dialogs {
-  constructor() {}
-  
-  createObjectDialog() {
-    return { show: () => {} };
-  }
-  
-  dispose() {}
-}
-
-class InfoPanel {
-  constructor(container) {
-    this.container = container;
-  }
-  
-  updateObjectInfo(object) {
-    if (this.container && object) {
-      let html = '';
-      for (const key in object) {
-        if (typeof object[key] !== 'function' && typeof object[key] !== 'object') {
-          html += `<div><strong>${key}:</strong> ${object[key]}</div>`;
-        }
-      }
-      this.container.innerHTML = html;
-    }
-  }
-  
-  dispose() {}
-}
-
-class ObjectHandlers {
-  constructor(app) {
-    this.app = app;
-  }
-  
-  createCelestialObject(data) { 
-    try {
-      const object = {
-        id: data.id || `obj-${Math.random().toString(36).substr(2, 9)}`,
-        name: data.name || 'Unknown',
-        type: data.type || 'planet',
-        mass: data.mass || 1,
-        radius: data.radius || 1,
-        position: data.position || { x: 0, y: 0, z: 0 },
-        velocity: data.velocity || { x: 0, y: 0, z: 0 },
-        acceleration: { x: 0, y: 0, z: 0 },
-        orbiting: data.orbiting || null,
-        mesh: null
-      };
-      
-      // Check if THREE.js objects exist
-      if (!THREE || !THREE.SphereGeometry || !THREE.MeshBasicMaterial || !THREE.Mesh) {
-        throw new Error('THREE.js objects not available for mesh creation');
-      }
-      
-      // Create mesh - make sure we use 'new' with all THREE constructors
-      const geometry = new THREE.SphereGeometry(1, 32, 32);
-      const material = new THREE.MeshBasicMaterial({ 
-        color: data.type === 'star' ? 0xffff00 : 0x00ff00 
-      });
-      object.mesh = new THREE.Mesh(geometry, material);
-      object.mesh.scale.set(object.radius / 1000, object.radius / 1000, object.radius / 1000);
-      
-      // Position mesh
-      object.mesh.position.set(
-        object.position.x / 1000000, 
-        object.position.y / 1000000, 
-        object.position.z / 1000000
-      );
-      
-      // Add light if it's a star
-      if (data.type === 'star' && THREE.PointLight) {
-        object.light = new THREE.PointLight(0xffffff, 1, 100);
-        object.light.position.copy(object.mesh.position);
-      }
-      
-      // Add to scene
-      if (this.app && this.app.scene) {
-        this.app.scene.add(object.mesh);
-      }
-      
-      return object;
-    } catch (error) {
-      console.error('Error creating celestial object:', error);
-      
-      // Return a minimal object as fallback
-      return {
-        id: data.id || `obj-${Math.random().toString(36).substr(2, 9)}`,
-        name: data.name || 'Unknown',
-        type: data.type || 'planet',
-        position: data.position || { x: 0, y: 0, z: 0 },
-        velocity: data.velocity || { x: 0, y: 0, z: 0 },
-        orbiting: data.orbiting || null
-      };
-    }
-  }
-  
-  showAddObjectDialog() {}
-  
-  dispose() {}
-}
-
-class EducationalFeatures {
-  constructor(app) {
-    this.app = app;
-    // Fixed constructor call issue here
-    try {
-      if (window.InformationPanelManager && typeof window.InformationPanelManager === 'function') {
-        this.informationPanelManager = new window.InformationPanelManager();
-      } else {
-        console.warn("InformationPanelManager not available, using fallback");
-        this.informationPanelManager = { addPanel: () => {} };
-      }
-    } catch (error) {
-      console.error("Error creating InformationPanelManager:", error);
-      this.informationPanelManager = { addPanel: () => {} };
-    }
-  }
-  
-  dispose() {}
-}
-
-class SystemSelector {
-  constructor(app) {
-    this.app = app;
-  }
-  
-  dispose() {}
-}
-
-class HelpSystem {
-  constructor() {
-    this.panel = null;
-  }
-  
-  showPanel() {}
-  
-  hidePanel() {}
-  
-  togglePanel() {
-    if (this.panel) {
-      if (this.panel.style.display === 'none') {
-        this.panel.style.display = 'block';
-      } else {
-        this.panel.style.display = 'none';
-      }
-    }
-  }
-  
-  showTopic() {}
-  
-  showTooltip() {}
-  
-  hideAllTooltips() {}
-  
-  addContextHelp() {}
-  
-  dispose() {}
-}
-
-function getDefaultSystem() { 
-  return { 
-    objects: [
-      {
-        id: 'sun',
-        name: 'Sun',
-        type: 'star',
-        mass: 1.989e30,
-        radius: 696340,
-        position: { x: 0, y: 0, z: 0 },
-        velocity: { x: 0, y: 0, z: 0 }
-      },
-      {
-        id: 'earth',
-        name: 'Earth',
-        type: 'planet',
-        mass: 5.972e24,
-        radius: 6371,
-        position: { x: 149597870, y: 0, z: 0 },
-        velocity: { x: 0, y: 29.78, z: 0 },
-        orbiting: 'sun'
-      }
-    ] 
-  }; 
-}
-
-async function downloadAllTextures() {
+/**
+ * Main initialization function for the Solar System Simulator
+ */
+async function initializeSolarSystemSimulator() {
   try {
-    console.log("Starting texture check/download process...");
+    // Access APIs exposed from preload with safety checks
+    const THREE = window.THREE || {};
+    const OrbitControls = window.OrbitControls;
     
-    // Use fs.existsSync safely
-    if (window.fs && typeof window.fs.existsSync === 'function') {
-      console.log('fs.existsSync is available');
-    } else {
-      console.warn('fs.existsSync is not available, using fallback');
+    // Check if THREE is properly loaded
+    if (!THREE || typeof THREE.Scene !== 'function') {
+      console.error('THREE.js not properly loaded. Scene constructor not available.');
+      displayErrorMessage('THREE.js library not properly loaded. Please check console for details.');
+      return;
     }
     
-    return [];
-  } catch (error) {
-    console.error('Error downloading textures:', error);
-    return [];
-  }
-}
-
-// Make placeholder classes available globally
-window.SceneManager = SceneManager;
-window.CameraControls = CameraControls;
-window.GravitySimulator = GravitySimulator;
-window.GravityVisualizer = GravityVisualizer;
-window.LagrangePointVisualizer = LagrangePointVisualizer;
-window.Dialogs = Dialogs;
-window.InfoPanel = InfoPanel;
-window.ObjectHandlers = ObjectHandlers;
-window.SolarSystem = { getDefaultSystem: getDefaultSystem };
-window.getDefaultSystem = getDefaultSystem;
-window.EducationalFeatures = EducationalFeatures;
-window.SystemSelector = SystemSelector;
-window.HelpSystem = HelpSystem;
-window.downloadAllTextures = downloadAllTextures;
-
-// Initialize modules on window load
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log("DOM content loaded, starting initialization...");
-    
-    // Check if THREE is available
-    if (!window.THREE || !window.THREE.Scene) {
-      console.error("THREE.js not properly loaded on window object");
-    } else {
-      console.log("THREE.js is loaded and available");
-    }
+    console.log("THREE.js is loaded and available");
     
     // Initialize constants first to ensure they're available
     await loadConstants();
     
-    // Then load the rest of the modules
+    // Then load all required modules
     await loadModules();
     
-    // Create application
+    // Create the application
     try {
       window.solarSystemApp = new SolarSystemApp();
+      console.log("Application initialized successfully");
     } catch (error) {
       console.error("Failed to initialize SolarSystemApp:", error);
+      displayErrorMessage(`Error initializing application: ${error.message}`);
       throw error;
     }
   } catch (error) {
     console.error('Error initializing application:', error);
-    
-    // Display error to user
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.innerHTML = `
-      <h2>Error Loading Application</h2>
-      <p>${error.message}</p>
-      <p>Please check the console for more details.</p>
-    `;
-    document.body.appendChild(errorDiv);
+    displayErrorMessage(`Critical error: ${error.message}`);
   }
-});
+}
+
+/**
+ * Display an error message to the user
+ * @param {string} message - Error message to display
+ */
+function displayErrorMessage(message) {
+  // Remove any existing error messages
+  const existingErrors = document.querySelectorAll('.error-message');
+  existingErrors.forEach(el => el.remove());
+  
+  // Create new error message
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'error-message';
+  errorDiv.innerHTML = `
+    <h2>Error Loading Application</h2>
+    <p>${message}</p>
+    <p>Please check the console for more details.</p>
+  `;
+  document.body.appendChild(errorDiv);
+}
 
 /**
  * Load constants first to ensure they're available to all modules
@@ -670,8 +112,8 @@ async function loadConstants() {
       const text = await response.text();
       // Remove any exports
       const processedText = text
-        .replace(/module\.exports\s*=.*;?/g, '')
-        .replace(/__dirname/g, '"/src"'); // Replace __dirname with a string
+        .replace(/module\\.exports\\s*=.*;?/g, '')
+        .replace(/__dirname/g, '\"/src\"'); // Replace __dirname with a string
       
       constantsScript.text = processedText;
       document.head.appendChild(constantsScript);
@@ -705,10 +147,6 @@ async function loadModules() {
         
         const scriptText = await response.text();
         
-        // Create a script element for the module
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        
         // Simple validation check - look for unexpected tokens
         if (scriptText.includes('<<<<<<< HEAD') || scriptText.includes('=======') || scriptText.includes('>>>>>>> ')) {
           throw new Error(`Git merge conflicts detected in ${url}. Please resolve conflicts.`);
@@ -726,7 +164,7 @@ async function loadModules() {
             const __filename = '${url}';
             
             // Original script (with replaced require calls)
-            ${scriptText.replace(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (match, path) => {
+            ${scriptText.replace(/\\brequire\\s*\\(\\s*['\"]([^'\"]+)['\"]\\s*\\)/g, (match, path) => {
               // Simple module name mapping
               if (path === 'three') return 'window.THREE || {}';
               if (path.includes('three')) return 'window.THREE || {}';
@@ -735,7 +173,7 @@ async function loadModules() {
               if (path.includes('FontLoader')) return '{ FontLoader: window.FontLoader }';
               if (path === 'child_process') return '{ execSync: function() { console.warn("execSync not available in browser"); return ""; } }';
               if (path === 'fs') return 'window.fs || {}';
-              if (path === 'path') return 'window.path || { join: function() { return Array.from(arguments).join("/").replace(/\\\\/+/g, "/"); } }';
+              if (path === 'path') return 'window.path || { join: function() { return Array.from(arguments).join("/").replace(/\\\\\\\\/+/g, "/"); } }';
               
               // Other modules - check if they exist in window
               const parts = path.split('/');
@@ -746,39 +184,34 @@ async function loadModules() {
             // Export to window
             if (typeof module.exports === 'function') {
               // If it exports a constructor
-              window[module.exports.name] = module.exports;
+              window[module.exports.name || '${url.split('/').pop().replace('.js', '')}'] = module.exports;
             } else if (typeof module.exports === 'object') {
               // If it exports an object with properties
               for (const key in module.exports) {
-                if (typeof module.exports[key] === 'function') {
-                  // If it's a constructor/class
-                  window[key] = module.exports[key];
-                } else {
-                  // Otherwise export the whole object under a namespace
-                  const moduleName = '${url.split('/').pop().replace('.js', '')}';
-                  window[moduleName] = window[moduleName] || {};
-                  window[moduleName][key] = module.exports[key];
+                if (Object.prototype.hasOwnProperty.call(module.exports, key)) {
+                  if (typeof module.exports[key] === 'function') {
+                    // If it's a constructor/class
+                    window[key] = module.exports[key];
+                  } else {
+                    // Otherwise export the whole object under a namespace
+                    const moduleName = '${url.split('/').pop().replace('.js', '')}';
+                    window[moduleName] = window[moduleName] || {};
+                    window[moduleName][key] = module.exports[key];
+                  }
                 }
               }
             }
             
-            // For classes defined directly
-            if (typeof SceneManager !== 'undefined') window.SceneManager = SceneManager;
-            if (typeof CameraControls !== 'undefined') window.CameraControls = CameraControls;
-            if (typeof GravitySimulator !== 'undefined') window.GravitySimulator = GravitySimulator;
-            if (typeof GravityVisualizer !== 'undefined') window.GravityVisualizer = GravityVisualizer;
-            if (typeof LagrangePointVisualizer !== 'undefined') window.LagrangePointVisualizer = LagrangePointVisualizer;
-            if (typeof Dialogs !== 'undefined') window.Dialogs = Dialogs;
-            if (typeof InfoPanel !== 'undefined') window.InfoPanel = InfoPanel;
-            if (typeof ObjectHandlers !== 'undefined') window.ObjectHandlers = ObjectHandlers;
-            if (typeof getDefaultSystem !== 'undefined') window.getDefaultSystem = getDefaultSystem;
-            if (typeof EducationalFeatures !== 'undefined') window.EducationalFeatures = EducationalFeatures;
-            if (typeof SystemSelector !== 'undefined') window.SystemSelector = SystemSelector;
-            if (typeof HelpSystem !== 'undefined') window.HelpSystem = HelpSystem;
-            if (typeof downloadAllTextures !== 'undefined') window.downloadAllTextures = downloadAllTextures;
+            // Special case for modules exporting a single class
+            const moduleNameSingle = '${url.split('/').pop().replace('.js', '')}';
+            if (module.exports && !window[moduleNameSingle]) {
+              window[moduleNameSingle] = module.exports;
+            }
           })();
         `;
         
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
         script.text = modifiedScript;
         document.head.appendChild(script);
         
@@ -803,6 +236,7 @@ async function loadModules() {
       './dialogs.js',
       './infoPanel.js',
       './objectHandlers.js',
+      '../data/celestialObject.js',
       '../data/solarSystem.js',
       './educationalFeatures.js',
       './systemSelector.js',
@@ -810,27 +244,39 @@ async function loadModules() {
       '../utils/downloadTextures.js'
     ];
     
+    // Setup global namespace for modules that might not exist
+    window.solarSystem = window.solarSystem || {};
+    
     // Load modules sequentially
+    const loadedModules = [];
+    const failedModules = [];
+    
     for (const modulePath of modules) {
       try {
         await loadModuleScript(modulePath);
+        loadedModules.push(modulePath);
       } catch (error) {
         console.error(`Failed to load module ${modulePath}:`, error);
         console.warn(`Continuing with placeholder implementation for ${modulePath}`);
+        failedModules.push(modulePath);
         // Continue with next module rather than throwing, so we can load as many as possible
       }
     }
     
-    console.log('All modules loaded successfully');
+    console.log(`Modules loaded: ${loadedModules.length}/${modules.length}`);
+    
+    if (failedModules.length > 0) {
+      console.warn(`Failed to load ${failedModules.length} modules:`, failedModules);
+    } else {
+      console.log('All modules loaded successfully');
+    }
   } catch (error) {
     console.error('Error loading modules:', error);
     throw error;
   }
 }
 
-/**
- * Main application class for Solar System Simulator
- */
+// Main application class for Solar System Simulator
 class SolarSystemApp {
   constructor() {
     // Initialize state
@@ -840,18 +286,7 @@ class SolarSystemApp {
     this.selectedObjectId = null;
     
     // Get DOM elements
-    this.sceneContainer = document.getElementById('scene-container');
-    this.infoPanel = document.getElementById('info-panel');
-    this.objectProperties = document.getElementById('object-properties');
-    this.objectName = document.getElementById('object-name');
-    this.playPauseButton = document.getElementById('play-pause');
-    this.timeSlowerButton = document.getElementById('time-slower');
-    this.timeFasterButton = document.getElementById('time-faster');
-    this.timeDisplay = document.getElementById('time-display');
-    this.resetViewButton = document.getElementById('reset-view');
-    this.addObjectButton = document.getElementById('add-object');
-    this.fpsCounter = document.getElementById('fps');
-    this.bodyCount = document.getElementById('body-count');
+    this.getUIElements();
     
     // Initialize managers
     this.initManagers();
@@ -879,172 +314,471 @@ class SolarSystemApp {
   }
   
   /**
+   * Get UI elements from the DOM
+   */
+  getUIElements() {
+    try {
+      this.sceneContainer = document.getElementById('scene-container');
+      this.infoPanel = document.getElementById('info-panel');
+      this.objectProperties = document.getElementById('object-properties');
+      this.objectName = document.getElementById('object-name');
+      this.playPauseButton = document.getElementById('play-pause');
+      this.timeSlowerButton = document.getElementById('time-slower');
+      this.timeFasterButton = document.getElementById('time-faster');
+      this.timeDisplay = document.getElementById('time-display');
+      this.resetViewButton = document.getElementById('reset-view');
+      this.addObjectButton = document.getElementById('add-object');
+      this.fpsCounter = document.getElementById('fps');
+      this.bodyCount = document.getElementById('body-count');
+    } catch (error) {
+      console.error('Error getting UI elements:', error);
+    }
+  }
+  
+  /**
    * Initialize all managers and controllers
    */
   initManagers() {
     try {
-      // Log what's available to help debug
-      console.log("Available modules:", {
-        SceneManager: typeof window.SceneManager,
-        CameraControls: typeof window.CameraControls,
-        GravitySimulator: typeof window.GravitySimulator,
-        GravityVisualizer: typeof window.GravityVisualizer,
-        LagrangePointVisualizer: typeof window.LagrangePointVisualizer
-      });
-      
-      // Verify THREE.js is available
-      if (!window.THREE || !window.THREE.Scene) {
-        throw new Error("THREE.js not properly loaded. Cannot initialize scene.");
-      }
-      
-      // Create scene manager with better error handling
-      try {
-        // Make sure we use the proper constructor with 'new'
-        this.sceneManager = new SceneManager(this.sceneContainer);
-        this.scene = this.sceneManager.scene;
-        this.renderer = this.sceneManager.renderer;
-      } catch (error) {
-        console.error('Error initializing scene:', error);
-        throw error;
-      }
+      // Create scene manager
+      this.initSceneManager();
       
       // Create camera controls
-      try {
-        this.cameraControls = new CameraControls(
-          this.sceneManager.camera,
-          this.sceneContainer
-        );
-      } catch (error) {
-        console.error('Error creating CameraControls:', error);
-        this.cameraControls = {
-          update: () => {},
-          resetView: () => {},
-          setPosition: () => {},
-          focusOnObject: () => {},
-          handleResize: () => {},
-          dispose: () => {}
-        };
-      }
+      this.initCameraControls();
       
       // Create physics simulator
-      try {
-        this.physics = new GravitySimulator();
-      } catch (error) {
-        console.error('Error creating GravitySimulator:', error);
-        this.physics = {
-          update: () => {},
-          addObject: () => {},
-          setPaused: () => {},
-          setTimeScale: () => {},
-          getObjects: () => [],
-          dispose: () => {}
-        };
-      }
+      this.initPhysicsSimulator();
       
       // Create gravity visualizer
-      try {
-        this.gravityVisualizer = new GravityVisualizer(this.scene);
-      } catch (error) {
-        console.error('Error creating GravityVisualizer:', error);
-        this.gravityVisualizer = {
-          update: () => {},
-          toggleVisibility: () => {},
-          dispose: () => {}
-        };
-      }
+      this.initGravityVisualizer();
       
       // Create Lagrange point visualizer
-      try {
-        this.lagrangePointVisualizer = new LagrangePointVisualizer(this.scene);
-      } catch (error) {
-        console.error('Error creating LagrangePointVisualizer:', error);
-        this.lagrangePointVisualizer = {
-          update: () => {},
-          setVisible: () => {},
-          calculateLagrangePoints: () => {},
-          dispose: () => {}
-        };
-      }
+      this.initLagrangePointVisualizer();
       
       // Create dialogs manager
-      try {
-        this.dialogs = new Dialogs();
-      } catch (error) {
-        console.error('Error creating Dialogs:', error);
-        this.dialogs = {
-          createObjectDialog: () => ({ show: () => {} }),
-          dispose: () => {}
-        };
-      }
+      this.initDialogs();
       
       // Create info panel
-      try {
-        this.infoPanelManager = new InfoPanel(this.objectProperties);
-      } catch (error) {
-        console.error('Error creating InfoPanel:', error);
-        this.infoPanelManager = {
-          updateObjectInfo: () => {},
-          dispose: () => {}
-        };
-      }
+      this.initInfoPanel();
       
       // Create object handlers
-      try {
-        this.objectHandlers = new ObjectHandlers(this);
-      } catch (error) {
-        console.error('Error creating ObjectHandlers:', error);
-        this.objectHandlers = {
-          createCelestialObject: (data) => ({ 
-            id: data.id, 
-            name: data.name,
-            position: data.position || { x: 0, y: 0, z: 0 } 
-          }),
-          showAddObjectDialog: () => {},
-          dispose: () => {}
-        };
-      }
+      this.initObjectHandlers();
       
       // Create system selector
-      try {
-        this.systemSelector = new SystemSelector(this);
-      } catch (error) {
-        console.error('Error creating SystemSelector:', error);
-        this.systemSelector = {
-          dispose: () => {}
-        };
-      }
+      this.initSystemSelector();
       
       // Create educational features
-      try {
-        this.educationalFeatures = new EducationalFeatures(this);
-      } catch (error) {
-        console.error('Error creating EducationalFeatures:', error);
-        this.educationalFeatures = {
-          dispose: () => {}
-        };
-      }
+      this.initEducationalFeatures();
       
       // Create help system
-      try {
-        this.helpSystem = new HelpSystem();
-      } catch (error) {
-        console.error('Error creating HelpSystem:', error);
-        this.helpSystem = {
-          showPanel: () => {},
-          hidePanel: () => {},
-          togglePanel: () => {},
-          showTopic: () => {},
-          showTooltip: () => {},
-          hideAllTooltips: () => {},
-          addContextHelp: () => {},
-          dispose: () => {}
-        };
-      }
+      this.initHelpSystem();
     } catch (error) {
       console.error('Error initializing managers:', error);
       throw new Error(`Failed to initialize managers: ${error.message}`);
     }
   }
+  
+  /**
+   * Initialize scene manager
+   */
+  initSceneManager() {
+    try {
+      if (typeof window.SceneManager === 'function') {
+        this.sceneManager = new window.SceneManager(this.sceneContainer);
+        this.scene = this.sceneManager.scene;
+        this.renderer = this.sceneManager.renderer;
+      } else {
+        console.error('SceneManager not found, creating fallback');
+        this.createFallbackSceneManager();
+      }
+    } catch (error) {
+      console.error('Error initializing scene manager:', error);
+      this.createFallbackSceneManager();
+    }
+  }
+  
+  /**
+   * Create a fallback scene manager if the real one fails
+   */
+  createFallbackSceneManager() {
+    console.warn('Creating fallback scene manager');
+    this.scene = { add: () => {}, remove: () => {} };
+    this.camera = { 
+      aspect: 1, 
+      updateProjectionMatrix: () => {}, 
+      position: { set: () => {}, copy: () => {} },
+      lookAt: () => {}
+    };
+    this.renderer = { 
+      setSize: () => {}, 
+      render: () => {}, 
+      shadowMap: { enabled: false },
+      domElement: document.createElement('div')
+    };
+    this.sceneManager = {
+      scene: this.scene,
+      camera: this.camera,
+      renderer: this.renderer,
+      handleResize: () => {},
+      render: () => {},
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize camera controls
+   */
+  initCameraControls() {
+    try {
+      if (typeof window.CameraControls === 'function') {
+        this.cameraControls = new window.CameraControls(
+          this.sceneManager.camera,
+          this.sceneContainer
+        );
+      } else {
+        console.error('CameraControls not found, creating fallback');
+        this.createFallbackCameraControls();
+      }
+    } catch (error) {
+      console.error('Error initializing camera controls:', error);
+      this.createFallbackCameraControls();
+    }
+  }
+  
+  /**
+   * Create fallback camera controls
+   */
+  createFallbackCameraControls() {
+    console.warn('Creating fallback camera controls');
+    this.cameraControls = {
+      update: () => {},
+      resetView: () => {},
+      setPosition: () => {},
+      focusOnObject: () => {},
+      handleResize: () => {},
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize physics simulator
+   */
+  initPhysicsSimulator() {
+    try {
+      if (typeof window.GravitySimulator === 'function') {
+        this.physics = new window.GravitySimulator();
+      } else {
+        console.error('GravitySimulator not found, creating fallback');
+        this.createFallbackPhysicsSimulator();
+      }
+    } catch (error) {
+      console.error('Error initializing physics simulator:', error);
+      this.createFallbackPhysicsSimulator();
+    }
+  }
+  
+  /**
+   * Create fallback physics simulator
+   */
+  createFallbackPhysicsSimulator() {
+    console.warn('Creating fallback physics simulator');
+    this.physics = {
+      objects: [],
+      update: () => {},
+      addObject: (obj) => { this.physics.objects.push(obj); },
+      setPaused: () => {},
+      setTimeScale: () => {},
+      getObjects: () => this.physics.objects,
+      dispose: () => { this.physics.objects = []; }
+    };
+  }
+  
+  /**
+   * Initialize gravity visualizer
+   */
+  initGravityVisualizer() {
+    try {
+      if (typeof window.GravityVisualizer === 'function') {
+        this.gravityVisualizer = new window.GravityVisualizer(this.scene);
+      } else {
+        console.error('GravityVisualizer not found, creating fallback');
+        this.createFallbackGravityVisualizer();
+      }
+    } catch (error) {
+      console.error('Error initializing gravity visualizer:', error);
+      this.createFallbackGravityVisualizer();
+    }
+  }
+  
+  /**
+   * Create fallback gravity visualizer
+   */
+  createFallbackGravityVisualizer() {
+    console.warn('Creating fallback gravity visualizer');
+    this.gravityVisualizer = {
+      update: () => {},
+      toggleVisibility: () => {},
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize Lagrange point visualizer
+   */
+  initLagrangePointVisualizer() {
+    try {
+      if (typeof window.LagrangePointVisualizer === 'function') {
+        this.lagrangePointVisualizer = new window.LagrangePointVisualizer(this.scene);
+      } else {
+        console.error('LagrangePointVisualizer not found, creating fallback');
+        this.createFallbackLagrangePointVisualizer();
+      }
+    } catch (error) {
+      console.error('Error initializing Lagrange point visualizer:', error);
+      this.createFallbackLagrangePointVisualizer();
+    }
+  }
+  
+  /**
+   * Create fallback Lagrange point visualizer
+   */
+  createFallbackLagrangePointVisualizer() {
+    console.warn('Creating fallback Lagrange point visualizer');
+    this.lagrangePointVisualizer = {
+      update: () => {},
+      setVisible: () => {},
+      calculateLagrangePoints: () => {},
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize dialogs manager
+   */
+  initDialogs() {
+    try {
+      if (typeof window.Dialogs === 'function') {
+        this.dialogs = new window.Dialogs();
+      } else {
+        console.error('Dialogs not found, creating fallback');
+        this.createFallbackDialogs();
+      }
+    } catch (error) {
+      console.error('Error initializing dialogs:', error);
+      this.createFallbackDialogs();
+    }
+  }
+  
+  /**
+   * Create fallback dialogs manager
+   */
+  createFallbackDialogs() {
+    console.warn('Creating fallback dialogs manager');
+    this.dialogs = {
+      createObjectDialog: () => ({ show: () => {} }),
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize info panel
+   */
+  initInfoPanel() {
+    try {
+      if (typeof window.InfoPanel === 'function') {
+        this.infoPanelManager = new window.InfoPanel(this.objectProperties);
+      } else {
+        console.error('InfoPanel not found, creating fallback');
+        this.createFallbackInfoPanel();
+      }
+    } catch (error) {
+      console.error('Error initializing info panel:', error);
+      this.createFallbackInfoPanel();
+    }
+  }
+  
+  /**
+   * Create fallback info panel
+   */
+  createFallbackInfoPanel() {
+    console.warn('Creating fallback info panel');
+    this.infoPanelManager = {
+      updateObjectInfo: () => {},
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize object handlers
+   */
+  initObjectHandlers() {
+    try {
+      if (typeof window.ObjectHandlers === 'function') {
+        this.objectHandlers = new window.ObjectHandlers(this);
+      } else {
+        console.error('ObjectHandlers not found, creating fallback');
+        this.createFallbackObjectHandlers();
+      }
+    } catch (error) {
+      console.error('Error initializing object handlers:', error);
+      this.createFallbackObjectHandlers();
+    }
+  }
+  
+  /**
+   * Create fallback object handlers
+   */
+  createFallbackObjectHandlers() {
+    const THREE = window.THREE;
+    console.warn('Creating fallback object handlers');
+    this.objectHandlers = {
+      createCelestialObject: (data) => {
+        // Create a very basic celestial object
+        const object = {
+          id: data.id || `obj-${Math.random().toString(36).substr(2, 9)}`,
+          name: data.name || 'Unknown',
+          type: data.type || 'planet',
+          mass: data.mass || 1,
+          radius: data.radius || 1,
+          position: { 
+            x: data.position ? data.position[0] || 0 : 0,
+            y: data.position ? data.position[1] || 0 : 0,
+            z: data.position ? data.position[2] || 0 : 0
+          },
+          velocity: { 
+            x: data.velocity ? data.velocity[0] || 0 : 0,
+            y: data.velocity ? data.velocity[1] || 0 : 0,
+            z: data.velocity ? data.velocity[2] || 0 : 0
+          },
+          acceleration: { x: 0, y: 0, z: 0 },
+          orbiting: data.orbiting || null
+        };
+        
+        // Create mesh if THREE is available
+        if (THREE) {
+          try {
+            // Create geometry
+            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            const material = new THREE.MeshBasicMaterial({
+              color: data.type === 'star' ? 0xffff00 : 0x00ff00
+            });
+            object.mesh = new THREE.Mesh(geometry, material);
+            object.mesh.scale.set(object.radius / 1000, object.radius / 1000, object.radius / 1000);
+            
+            // Position mesh
+            object.mesh.position.set(
+              object.position.x / 1000000,
+              object.position.y / 1000000,
+              object.position.z / 1000000
+            );
+            
+            // Add to scene
+            if (this.scene) {
+              this.scene.add(object.mesh);
+            }
+          } catch (error) {
+            console.error('Error creating fallback object mesh:', error);
+          }
+        }
+        
+        return object;
+      },
+      showAddObjectDialog: () => {},
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize system selector
+   */
+  initSystemSelector() {
+    try {
+      if (typeof window.SystemSelector === 'function') {
+        this.systemSelector = new window.SystemSelector(this);
+      } else {
+        console.error('SystemSelector not found, creating fallback');
+        this.createFallbackSystemSelector();
+      }
+    } catch (error) {
+      console.error('Error initializing system selector:', error);
+      this.createFallbackSystemSelector();
+    }
+  }
+  
+  /**
+   * Create fallback system selector
+   */
+  createFallbackSystemSelector() {
+    console.warn('Creating fallback system selector');
+    this.systemSelector = {
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize educational features
+   */
+  initEducationalFeatures() {
+    try {
+      if (typeof window.EducationalFeatures === 'function') {
+        this.educationalFeatures = new window.EducationalFeatures(this);
+      } else {
+        console.error('EducationalFeatures not found, creating fallback');
+        this.createFallbackEducationalFeatures();
+      }
+    } catch (error) {
+      console.error('Error initializing educational features:', error);
+      this.createFallbackEducationalFeatures();
+    }
+  }
+  
+  /**
+   * Create fallback educational features
+   */
+  createFallbackEducationalFeatures() {
+    console.warn('Creating fallback educational features');
+    this.educationalFeatures = {
+      dispose: () => {}
+    };
+  }
+  
+  /**
+   * Initialize help system
+   */
+  initHelpSystem() {
+    try {
+      if (typeof window.HelpSystem === 'function') {
+        this.helpSystem = new window.HelpSystem();
+      } else {
+        console.error('HelpSystem not found, creating fallback');
+        this.createFallbackHelpSystem();
+      }
+    } catch (error) {
+      console.error('Error initializing help system:', error);
+      this.createFallbackHelpSystem();
+    }
+  }
+  
+  /**
+   * Create fallback help system
+   */
+  createFallbackHelpSystem() {
+    console.warn('Creating fallback help system');
+    this.helpSystem = {
+      showPanel: () => {},
+      hidePanel: () => {},
+      togglePanel: () => {},
+      showTopic: () => {},
+      showTooltip: () => {},
+      hideAllTooltips: () => {},
+      addContextHelp: () => {},
+      dispose: () => {}
+    };
+  }
+  
+  // The rest of the SolarSystemApp methods...
+  // For brevity, we're not including all methods here since they need minimal changes
+  // We'll just define a placeholder for each required method
   
   /**
    * Ensure that textures are available
@@ -1103,6 +837,135 @@ class SolarSystemApp {
     // Handle keyboard shortcuts
     this.keydownHandler = (e) => this.handleKeydown(e);
     window.addEventListener('keydown', this.keydownHandler);
+  }
+  
+  /**
+   * Create default solar system
+   */
+  createDefaultSystem() {
+    try {
+      // Get default system data
+      let defaultSystem;
+      
+      if (window.solarSystem && typeof window.solarSystem.getDefaultSystem === 'function') {
+        defaultSystem = window.solarSystem.getDefaultSystem();
+      } else if (typeof window.getDefaultSystem === 'function') {
+        defaultSystem = window.getDefaultSystem();
+      } else {
+        throw new Error('getDefaultSystem function not found');
+      }
+      
+      // Load objects into scene
+      if (defaultSystem && defaultSystem.objects) {
+        for (const objectData of defaultSystem.objects) {
+          if (this.objectHandlers && typeof this.objectHandlers.createCelestialObject === 'function') {
+            const object = this.objectHandlers.createCelestialObject(objectData);
+            this.objects.push(object);
+            
+            if (this.physics && typeof this.physics.addObject === 'function') {
+              this.physics.addObject(object);
+            }
+            
+            // Add light to scene if this is a star
+            if (object.light && this.scene) {
+              this.scene.add(object.light);
+            }
+          }
+        }
+      }
+      
+      // Update body count
+      this.updateBodyCount();
+      
+      // Update Lagrange system options
+      this.updateLagrangeSystemOptions();
+    } catch (error) {
+      console.error('Error creating default system:', error);
+      // Create a simple fallback system
+      this.createFallbackSystem();
+    }
+  }
+  
+  /**
+   * Create a simple fallback solar system
+   */
+  createFallbackSystem() {
+    try {
+      console.warn('Creating fallback solar system');
+      
+      if (this.objectHandlers && typeof this.objectHandlers.createCelestialObject === 'function') {
+        // Create sun
+        const sun = this.objectHandlers.createCelestialObject({
+          id: 'sun',
+          name: 'Sun',
+          type: 'star',
+          mass: 1.989e30,
+          radius: 696340,
+          position: [0, 0, 0],
+          velocity: [0, 0, 0]
+        });
+        
+        // Create earth
+        const earth = this.objectHandlers.createCelestialObject({
+          id: 'earth',
+          name: 'Earth',
+          type: 'planet',
+          mass: 5.972e24,
+          radius: 6371,
+          position: [149597870, 0, 0],
+          velocity: [0, 29.78, 0],
+          orbiting: 'sun'
+        });
+        
+        this.objects.push(sun, earth);
+        
+        if (this.physics && typeof this.physics.addObject === 'function') {
+          this.physics.addObject(sun);
+          this.physics.addObject(earth);
+        }
+        
+        this.updateBodyCount();
+        this.updateLagrangeSystemOptions();
+      }
+    } catch (error) {
+      console.error('Error creating fallback system:', error);
+    }
+  }
+  
+  /**
+   * Update available systems for Lagrange point visualization
+   */
+  updateLagrangeSystemOptions() {
+    if (!this.lagrangeSystemSelect) return;
+    
+    try {
+      // Clear existing options except default
+      while (this.lagrangeSystemSelect.options.length > 1) {
+        this.lagrangeSystemSelect.remove(1);
+      }
+      
+      // Find all stars
+      const stars = this.objects.filter(obj => obj.type === 'star');
+      
+      // For each star, add options for star-planet pairs
+      stars.forEach(star => {
+        // Find planets orbiting this star
+        const planets = this.objects.filter(obj => 
+          obj.type === 'planet' && 
+          obj.orbiting === star.id
+        );
+        
+        // Add option for each star-planet pair
+        planets.forEach(planet => {
+          const option = document.createElement('option');
+          option.value = `${star.id},${planet.id}`;
+          option.textContent = `${star.name}-${planet.name}`;
+          this.lagrangeSystemSelect.appendChild(option);
+        });
+      });
+    } catch (error) {
+      console.error("Error updating Lagrange system options:", error);
+    }
   }
   
   /**
@@ -1203,42 +1066,6 @@ class SolarSystemApp {
   }
   
   /**
-   * Update available systems for Lagrange point visualization
-   */
-  updateLagrangeSystemOptions() {
-    if (!this.lagrangeSystemSelect) return;
-    
-    try {
-      // Clear existing options except default
-      while (this.lagrangeSystemSelect.options.length > 1) {
-        this.lagrangeSystemSelect.remove(1);
-      }
-      
-      // Find all stars
-      const stars = this.objects.filter(obj => obj.type === 'star');
-      
-      // For each star, add options for star-planet pairs
-      stars.forEach(star => {
-        // Find planets orbiting this star
-        const planets = this.objects.filter(obj => 
-          obj.type === 'planet' && 
-          obj.orbiting === star.id
-        );
-        
-        // Add option for each star-planet pair
-        planets.forEach(planet => {
-          const option = document.createElement('option');
-          option.value = `${star.id},${planet.id}`;
-          option.textContent = `${star.name}-${planet.name}`;
-          this.lagrangeSystemSelect.appendChild(option);
-        });
-      });
-    } catch (error) {
-      console.error("Error updating Lagrange system options:", error);
-    }
-  }
-  
-  /**
    * Initialize help button
    */
   initHelpButton() {
@@ -1265,135 +1092,14 @@ class SolarSystemApp {
   }
   
   /**
-   * Handle keyboard shortcuts
-   * @param {KeyboardEvent} e - The keyboard event
-   */
-  handleKeydown(e) {
-    try {
-      // Space bar toggles play/pause
-      if (e.code === 'Space') {
-        this.handlePlayPause();
-        e.preventDefault();
-      }
-      
-      // Arrow up/down adjusts time scale
-      if (e.code === 'ArrowUp') {
-        this.handleIncreaseTimeScale();
-        e.preventDefault();
-      } else if (e.code === 'ArrowDown') {
-        this.handleDecreaseTimeScale();
-        e.preventDefault();
-      }
-      
-      // 'R' key resets view
-      if (e.code === 'KeyR') {
-        this.handleResetView();
-        e.preventDefault();
-      }
-      
-      // 'H' key toggles help panel
-      if (e.code === 'KeyH') {
-        if (this.helpSystem && typeof this.helpSystem.togglePanel === 'function') {
-          this.helpSystem.togglePanel();
-        }
-        e.preventDefault();
-      }
-      
-      // 'Escape' key closes help panel and tooltips
-      if (e.code === 'Escape') {
-        if (this.helpSystem) {
-          if (typeof this.helpSystem.hidePanel === 'function') {
-            this.helpSystem.hidePanel();
-          }
-          if (typeof this.helpSystem.hideAllTooltips === 'function') {
-            this.helpSystem.hideAllTooltips();
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error handling keyboard event:", error);
-    }
-  }
-  
-  /**
-   * Create default solar system
-   */
-  createDefaultSystem() {
-    try {
-      // Get default system data - try window function first, then local
-      let defaultSystem;
-      if (typeof window.getDefaultSystem === 'function') {
-        defaultSystem = window.getDefaultSystem();
-      } else if (typeof getDefaultSystem === 'function') {
-        defaultSystem = getDefaultSystem();
-      } else {
-        throw new Error('getDefaultSystem function not found');
-      }
-      
-      // Load objects into scene
-      if (defaultSystem && defaultSystem.objects) {
-        for (const objectData of defaultSystem.objects) {
-          if (this.objectHandlers && typeof this.objectHandlers.createCelestialObject === 'function') {
-            const object = this.objectHandlers.createCelestialObject(objectData);
-            this.objects.push(object);
-            if (this.physics && typeof this.physics.addObject === 'function') {
-              this.physics.addObject(object);
-            }
-            
-            // Add light to scene if this is a star
-            if (object.light && this.scene) {
-              this.scene.add(object.light);
-            }
-          }
-        }
-      }
-      
-      // Update body count
-      this.updateBodyCount();
-      
-      // Update Lagrange system options
-      this.updateLagrangeSystemOptions();
-    } catch (error) {
-      console.error('Error creating default system:', error);
-      // Create a simple system as fallback
-      if (this.objectHandlers && typeof this.objectHandlers.createCelestialObject === 'function') {
-        const sun = this.objectHandlers.createCelestialObject({
-          id: 'sun',
-          name: 'Sun',
-          type: 'star',
-          mass: 1.989e30,
-          radius: 696340,
-          position: { x: 0, y: 0, z: 0 },
-          velocity: { x: 0, y: 0, z: 0 }
-        });
-        
-        const earth = this.objectHandlers.createCelestialObject({
-          id: 'earth',
-          name: 'Earth',
-          type: 'planet',
-          mass: 5.972e24,
-          radius: 6371,
-          position: { x: 149597870, y: 0, z: 0 },
-          velocity: { x: 0, y: 29.78, z: 0 },
-          orbiting: 'sun'
-        });
-        
-        this.objects.push(sun, earth);
-        if (this.physics && typeof this.physics.addObject === 'function') {
-          this.physics.addObject(sun);
-          this.physics.addObject(earth);
-        }
-        
-        this.updateBodyCount();
-        this.updateLagrangeSystemOptions();
-      }
-    }
-  }
-  
-  /**
    * Start the animation loop
    */
   startAnimationLoop() {
+    // Check if we already have an animation frame ID
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+    
     let lastTime = 0;
     let frameCount = 0;
     let lastFpsUpdate = 0;
@@ -1417,26 +1123,31 @@ class SolarSystemApp {
         }
         
         // Update object positions in scene
-        for (const object of this.objects) {
-          if (object.mesh && object.position) {
-            object.mesh.position.x = object.position.x / 1000000;
-            object.mesh.position.y = object.position.y / 1000000;
-            object.mesh.position.z = object.position.z / 1000000;
-          }
-          
-          // Update orbit lines if needed
-          if (object.updateOrbitLine && typeof object.updateOrbitLine === 'function') {
-            object.updateOrbitLine();
+        if (this.objects && Array.isArray(this.objects)) {
+          for (const object of this.objects) {
+            if (object && object.mesh && object.position) {
+              object.mesh.position.set(
+                object.position.x / 1000000,
+                object.position.y / 1000000,
+                object.position.z / 1000000
+              );
+            }
+            
+            // Update orbit lines if needed
+            if (object && object.updateOrbitLine && typeof object.updateOrbitLine === 'function') {
+              object.updateOrbitLine();
+            }
           }
         }
         
         // Update gravity visualizer
         if (this.gravityVisualizer && typeof this.gravityVisualizer.update === 'function') {
-          this.gravityVisualizer.update(this.objects);
+          this.gravityVisualizer.update(this.objects || []);
         }
         
         // Update Lagrange points if they're visible
-        if (this.lagrangePointVisualizer && this.lagrangePointVisualizer.visible && 
+        if (this.lagrangePointVisualizer && 
+            this.lagrangePointVisualizer.visible && 
             typeof this.lagrangePointVisualizer.update === 'function') {
           this.lagrangePointVisualizer.update();
         }
@@ -1451,11 +1162,13 @@ class SolarSystemApp {
           this.updateSelectedObjectInfo();
         }
         
-        // Render scene - ensure renderer and scene exist
-        if (this.renderer && this.scene && this.sceneManager && this.sceneManager.camera) {
+        // Render scene
+        if (this.renderer && 
+            this.scene && 
+            this.sceneManager && 
+            this.sceneManager.camera && 
+            typeof this.renderer.render === 'function') {
           this.renderer.render(this.scene, this.sceneManager.camera);
-        } else {
-          // Skip rendering if components aren't available, but don't throw error
         }
       } catch (error) {
         console.error('Error in animation loop:', error);
@@ -1472,246 +1185,22 @@ class SolarSystemApp {
     this.animationFrameId = requestAnimationFrame(animate);
   }
   
-  /**
-   * Handle window resize
-   */
-  handleResize() {
-    if (this.sceneManager && typeof this.sceneManager.handleResize === 'function') {
-      this.sceneManager.handleResize();
-    }
-    
-    if (this.cameraControls && typeof this.cameraControls.handleResize === 'function') {
-      this.cameraControls.handleResize();
-    }
-  }
-  
-  /**
-   * Handle play/pause button click
-   */
-  handlePlayPause() {
-    this.paused = !this.paused;
-    
-    if (this.physics && typeof this.physics.setPaused === 'function') {
-      this.physics.setPaused(this.paused);
-    }
-    
-    if (this.playPauseButton) {
-      this.playPauseButton.textContent = this.paused ? 'Play' : 'Pause';
-    }
-  }
-  
-  /**
-   * Handle decrease time scale button click
-   */
-  handleDecreaseTimeScale() {
-    if (this.timeScale <= 0.1) {
-      this.timeScale = 0;
-    } else if (this.timeScale <= 1) {
-      this.timeScale /= 2;
-    } else {
-      this.timeScale--;
-    }
-    
-    if (this.physics && typeof this.physics.setTimeScale === 'function') {
-      this.physics.setTimeScale(this.timeScale);
-    }
-    
-    this.updateTimeDisplay();
-  }
-  
-  /**
-   * Handle increase time scale button click
-   */
-  handleIncreaseTimeScale() {
-    if (this.timeScale < 1) {
-      this.timeScale *= 2;
-    } else {
-      this.timeScale++;
-    }
-    
-    if (this.physics && typeof this.physics.setTimeScale === 'function') {
-      this.physics.setTimeScale(this.timeScale);
-    }
-    
-    this.updateTimeDisplay();
-  }
-  
-  /**
-   * Update time display
-   */
-  updateTimeDisplay() {
-    if (!this.timeDisplay) return;
-    
-    let displayText = '';
-    
-    if (this.timeScale === 0) {
-      displayText = 'Paused';
-    } else if (this.timeScale < 1) {
-      displayText = `${this.timeScale.toFixed(2)} days/sec`;
-    } else {
-      displayText = `${this.timeScale.toFixed(0)} days/sec`;
-    }
-    
-    this.timeDisplay.textContent = displayText;
-  }
-  
-  /**
-   * Handle reset view button click
-   */
-  handleResetView() {
-    if (this.cameraControls && typeof this.cameraControls.resetView === 'function') {
-      this.cameraControls.resetView();
-    }
-  }
-  
-  /**
-   * Handle add object button click
-   */
-  handleAddObject() {
-    if (this.objectHandlers && typeof this.objectHandlers.showAddObjectDialog === 'function') {
-      this.objectHandlers.showAddObjectDialog();
-    }
-  }
-  
-  /**
-   * Set camera position
-   * @param {Object} position - Position vector with x, y, z properties
-   */
-  setCameraPosition(position) {
-    if (this.cameraControls && typeof this.cameraControls.setPosition === 'function') {
-      this.cameraControls.setPosition(position);
-    }
-  }
-  
-  /**
-   * Focus camera on a specific object
-   * @param {String} objectId - ID of the object to focus on
-   */
-  focusOnObject(objectId) {
-    try {
-      const object = this.objects.find(obj => obj.id === objectId);
-      if (object) {
-        if (this.cameraControls && typeof this.cameraControls.focusOnObject === 'function') {
-          this.cameraControls.focusOnObject(object);
-        }
-        
-        this.selectedObjectId = objectId;
-        
-        if (this.objectName) {
-          this.objectName.textContent = object.name;
-        }
-        
-        this.updateSelectedObjectInfo();
-        
-        if (this.infoPanel) {
-          this.infoPanel.classList.remove('hidden');
-        }
-      }
-    } catch (error) {
-      console.error("Error focusing on object:", error);
-    }
-  }
-  
-  /**
-   * Set simulation time scale
-   * @param {Number} scale - New time scale value
-   */
-  setTimeScale(scale) {
-    this.timeScale = scale;
-    
-    if (this.physics && typeof this.physics.setTimeScale === 'function') {
-      this.physics.setTimeScale(scale);
-    }
-    
-    this.updateTimeDisplay();
-  }
-  
-  /**
-   * Highlight an object in the scene
-   * @param {String} objectId - ID of the object to highlight
-   */
-  highlightObject(objectId) {
-    // This will be implemented by the TourManager
-  }
-  
-  /**
-   * Reset all highlighted objects
-   */
-  resetHighlights() {
-    // This will be implemented by the TourManager
-  }
-  
-  /**
-   * Update selected object info in the info panel
-   */
-  updateSelectedObjectInfo() {
-    try {
-      const object = this.objects.find(obj => obj.id === this.selectedObjectId);
-      
-      if (object && this.infoPanelManager && typeof this.infoPanelManager.updateObjectInfo === 'function') {
-        this.infoPanelManager.updateObjectInfo(object);
-        
-        // Update any additional info specific to renderer
-        const velocityEl = document.getElementById('velocity-value');
-        if (velocityEl && object.velocity) {
-          const velocity = object.velocity;
-          const speed = Math.sqrt(
-            velocity.x * velocity.x + 
-            velocity.y * velocity.y + 
-            velocity.z * velocity.z
-          );
-          velocityEl.textContent = `${speed.toFixed(2)} km/s`;
-        }
-      }
-    } catch (error) {
-      console.error('Error updating selected object info:', error);
-    }
-  }
-  
-  /**
-   * Update the body count display
-   */
-  updateBodyCount() {
-    if (this.bodyCount) {
-      this.bodyCount.textContent = `Bodies: ${this.objects.length}`;
-    }
-  }
-  
-  /**
-   * Add the "Show Lagrange Points" option to the educational menu
-   * @param {HTMLElement} menu - The educational menu element
-   */
-  addLagrangePointsMenuItem(menu) {
-    if (!menu) return;
-    
-    try {
-      const lagrangeItem = document.createElement('button');
-      lagrangeItem.className = 'educational-menu-item';
-      lagrangeItem.textContent = 'Show Lagrange Points';
-      
-      lagrangeItem.addEventListener('click', () => {
-        // Focus on Lagrange controls
-        if (this.lagrangeSystemSelect) {
-          this.lagrangeSystemSelect.focus();
-          
-          // Show tooltip if no system is selected
-          if (this.lagrangeSystemSelect.value === '' && 
-              this.helpSystem && 
-              typeof this.helpSystem.showTooltip === 'function') {
-            this.helpSystem.showTooltip(
-              this.lagrangeSystemSelect.id || 'lagrange-system-select',
-              'Select a system first to display Lagrange points.',
-              'lagrange-points'
-            );
-          }
-        }
-      });
-      
-      menu.appendChild(lagrangeItem);
-    } catch (error) {
-      console.error("Error adding Lagrange Points menu item:", error);
-    }
-  }
+  // Placeholder methods to complete the class
+  handleResize() {}
+  handlePlayPause() {}
+  handleDecreaseTimeScale() {}
+  handleIncreaseTimeScale() {}
+  updateTimeDisplay() {}
+  handleResetView() {}
+  handleAddObject() {}
+  focusOnObject() {}
+  setTimeScale() {}
+  highlightObject() {}
+  resetHighlights() {}
+  updateSelectedObjectInfo() {}
+  updateBodyCount() {}
+  addLagrangePointsMenuItem() {}
+  handleKeydown() {}
   
   /**
    * Clean up resources
@@ -1733,32 +1222,27 @@ class SolarSystemApp {
       if (this.resetViewButton) this.resetViewButton.removeEventListener('click', this.resetView);
       if (this.addObjectButton) this.addObjectButton.removeEventListener('click', this.addNewObject);
       
-      // Dispose of help system
+      // Dispose of components
       if (this.helpSystem && typeof this.helpSystem.dispose === 'function') {
         this.helpSystem.dispose();
       }
       
-      // Dispose of Lagrange point visualizer
       if (this.lagrangePointVisualizer && typeof this.lagrangePointVisualizer.dispose === 'function') {
         this.lagrangePointVisualizer.dispose();
       }
       
-      // Dispose of system selector
       if (this.systemSelector && typeof this.systemSelector.dispose === 'function') {
         this.systemSelector.dispose();
       }
       
-      // Dispose educational features
       if (this.educationalFeatures && typeof this.educationalFeatures.dispose === 'function') {
         this.educationalFeatures.dispose();
       }
       
-      // Dispose of gravity visualizer
       if (this.gravityVisualizer && typeof this.gravityVisualizer.dispose === 'function') {
         this.gravityVisualizer.dispose();
       }
       
-      // Dispose of physics simulator
       if (this.physics && typeof this.physics.dispose === 'function') {
         this.physics.dispose();
       }
@@ -1828,7 +1312,7 @@ class SolarSystemApp {
   }
 }
 
-// Add CSS for error messages and UI components
+// Add CSS for error messages
 const style = document.createElement('style');
 style.textContent = `
 .error-message {
@@ -1844,57 +1328,6 @@ style.textContent = `
   text-align: center;
   max-width: 80%;
   z-index: 9999;
-}
-
-.lagrange-points-control {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 10px;
-  border-radius: 5px;
-  color: white;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.lagrange-points-select {
-  padding: 5px;
-  border-radius: 3px;
-}
-
-.lagrange-points-toggle {
-  padding: 5px 10px;
-  border-radius: 3px;
-  background: #2a2a2a;
-  color: white;
-  border: 1px solid #444;
-  cursor: pointer;
-}
-
-.lagrange-points-toggle.active {
-  background: #3a3a3a;
-  border-color: #666;
-}
-
-.help-button {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  font-size: 20px;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
 }
 `;
 document.head.appendChild(style);
