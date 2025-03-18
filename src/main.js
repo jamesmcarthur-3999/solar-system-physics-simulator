@@ -53,8 +53,33 @@ function createWindow() {
     show: false
   });
 
+  // Create HTML file path using proper path resolution
+  const indexPath = path.join(__dirname, 'ui', 'index.html');
+  
+  // Check if the file exists before loading
+  if (!fs.existsSync(indexPath)) {
+    console.error(`ERROR: Index file does not exist at: ${indexPath}`);
+    // Try to list the directory contents to debug
+    try {
+      const dirPath = path.join(__dirname, 'ui');
+      if (fs.existsSync(dirPath)) {
+        console.log(`Contents of ui directory: ${fs.readdirSync(dirPath).join(', ')}`);
+      } else {
+        console.error(`UI directory does not exist at: ${dirPath}`);
+      }
+    } catch (err) {
+      console.error('Error checking directory:', err);
+    }
+  } else {
+    console.log(`Index file exists at: ${indexPath}`);
+  }
+
+  // Use file:// protocol with properly formatted path
+  const fileUrl = `file://${indexPath.replace(/\\/g, '/')}`;
+  console.log(`Loading URL: ${fileUrl}`);
+  
   // and load the index.html of the app
-  mainWindow.loadFile(path.join(__dirname, 'ui', 'index.html'))
+  mainWindow.loadURL(fileUrl)
     .then(() => {
       console.log('Main window loaded successfully');
     })
