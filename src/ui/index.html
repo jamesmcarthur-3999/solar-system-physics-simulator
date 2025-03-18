@@ -3,27 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Simplified CSP to avoid potential issues -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+  <!-- Complete CSP that allows necessary resources -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net https://www.solarsystemscope.com;">
   <title>Solar System Simulator</title>
+  <link rel="stylesheet" href="./styles.css">
   <style>
-    body, html {
-      margin: 0;
-      padding: 0;
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
-      background: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      overflow: hidden;
+      background-color: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s ease-in-out;
     }
     
-    #loading-message {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
+    #loading-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
     
     .error-message {
@@ -43,12 +45,14 @@
   </style>
 </head>
 <body>
-  <div id="loading-message">
+  <!-- Loading screen -->
+  <div id="loading-screen">
     <h1>Loading Solar System Simulator...</h1>
     <p>Please wait while the application initializes</p>
   </div>
   
-  <div id="app" style="display: none;">
+  <!-- Main application -->
+  <div id="app">
     <header>
       <h1>Solar System Simulator</h1>
       <div class="controls">
@@ -79,46 +83,66 @@
     </footer>
   </div>
 
-  <!-- Simple initialization script -->
+  <!-- Error display container -->
+  <div id="error-container" style="display: none;">
+    <div class="error-message">
+      <h2>Error Loading Application</h2>
+      <p id="error-message">An error occurred while loading the application.</p>
+      <p>Please check the console for more details.</p>
+    </div>
+  </div>
+
+  <!-- Initialization script for loading screen -->
   <script>
     window.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM loaded - minimal initialization');
+      console.log('DOM loaded - initialization');
       
-      // Try to load styles explicitly
-      try {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = './styles.css';
-        document.head.appendChild(link);
-        console.log('Styles loaded');
-      } catch (error) {
-        console.error('Error loading styles:', error);
-      }
-      
-      // After a slight delay, load the main renderer script
-      setTimeout(() => {
-        try {
-          console.log('Loading renderer script...');
-          const script = document.createElement('script');
-          script.src = './renderer.js';
-          script.type = 'module';
-          script.onerror = (err) => console.error('Error loading renderer:', err);
-          document.body.appendChild(script);
-        } catch (error) {
-          console.error('Error loading renderer:', error);
-          
-          // Show error message
-          const errorDiv = document.createElement('div');
-          errorDiv.className = 'error-message';
-          errorDiv.innerHTML = `
-            <h2>Error Loading Application</h2>
-            <p>${error.message}</p>
-            <p>Please check the console for more details.</p>
-          `;
-          document.body.appendChild(errorDiv);
+      // Show application after scripts are loaded or timeout
+      const hideLoadingScreen = () => {
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+          loadingScreen.classList.add('hidden');
+          // Remove from DOM after transition completes
+          setTimeout(() => {
+            if (loadingScreen.parentNode) {
+              loadingScreen.parentNode.removeChild(loadingScreen);
+            }
+          }, 500);
         }
-      }, 500);
+      };
+      
+      // Handle error display
+      window.displayError = (message) => {
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        
+        if (errorMessage) {
+          errorMessage.textContent = message;
+        }
+        
+        if (errorContainer) {
+          errorContainer.style.display = 'block';
+        }
+        
+        // Hide loading screen if visible
+        hideLoadingScreen();
+      };
+      
+      // Set timeout to hide loading screen after maximum wait time
+      setTimeout(hideLoadingScreen, 15000);
+      
+      // Event handler for application loaded
+      window.applicationLoaded = () => {
+        console.log('Application loaded successfully');
+        hideLoadingScreen();
+      };
     });
   </script>
+
+  <!-- Load renderer script -->
+  <script src="./renderer.js" type="module"></script>
+  
+  <!-- Load patch script -->
+  <script src="../renderer-patch.js"></script>
 </body>
 </html>
