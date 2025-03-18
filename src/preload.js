@@ -4,30 +4,42 @@ const { contextBridge, ipcRenderer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-// Import modules that will be needed in the renderer
+// Import three.js - this can use require since it's not an ES module
 let THREE;
-let OrbitControls;
-let TextGeometry;
-let FontLoader;
+try {
+  THREE = require('three');
+  console.log("THREE.js loaded successfully via require");
+} catch (error) {
+  console.error("Failed to load THREE.js via require:", error);
+  THREE = null;
+}
 
 // Use dynamic import for ES modules
 (async () => {
   try {
-    // Import Three.js - this can use require since it's not an ES module
-    THREE = require('three');
-    
-    // Properly expose THREE first
+    // Properly expose THREE first - add all members to the window.THREE object
     if (THREE) {
-      contextBridge.exposeInMainWorld('THREE', THREE);
+      // Create a deep copy of all THREE properties to ensure proper exposure
+      const threeExports = {};
+      for (const key in THREE) {
+        if (Object.prototype.hasOwnProperty.call(THREE, key)) {
+          threeExports[key] = THREE[key];
+        }
+      }
+      contextBridge.exposeInMainWorld('THREE', threeExports);
+      console.log('THREE.js main module exposed to window.THREE');
+    } else {
+      console.error('THREE.js main module could not be loaded');
     }
     
     // Use dynamic imports for ES modules and expose them immediately when loaded
     try {
       const orbitControlsModule = await import('three/examples/jsm/controls/OrbitControls.js');
-      OrbitControls = orbitControlsModule.OrbitControls;
-      if (OrbitControls) {
-        contextBridge.exposeInMainWorld('OrbitControls', OrbitControls);
+      if (orbitControlsModule && orbitControlsModule.OrbitControls) {
+        contextBridge.exposeInMainWorld('OrbitControls', orbitControlsModule.OrbitControls);
         console.log('OrbitControls loaded and exposed successfully');
+      } else {
+        throw new Error('OrbitControls not found in module');
       }
     } catch (err) {
       console.error('Failed to load OrbitControls:', err);
@@ -35,10 +47,11 @@ let FontLoader;
     
     try {
       const textGeometryModule = await import('three/examples/jsm/geometries/TextGeometry.js');
-      TextGeometry = textGeometryModule.TextGeometry;
-      if (TextGeometry) {
-        contextBridge.exposeInMainWorld('TextGeometry', TextGeometry);
+      if (textGeometryModule && textGeometryModule.TextGeometry) {
+        contextBridge.exposeInMainWorld('TextGeometry', textGeometryModule.TextGeometry);
         console.log('TextGeometry loaded and exposed successfully');
+      } else {
+        throw new Error('TextGeometry not found in module');
       }
     } catch (err) {
       console.error('Failed to load TextGeometry:', err);
@@ -46,10 +59,11 @@ let FontLoader;
     
     try {
       const fontLoaderModule = await import('three/examples/jsm/loaders/FontLoader.js');
-      FontLoader = fontLoaderModule.FontLoader;
-      if (FontLoader) {
-        contextBridge.exposeInMainWorld('FontLoader', FontLoader);
+      if (fontLoaderModule && fontLoaderModule.FontLoader) {
+        contextBridge.exposeInMainWorld('FontLoader', fontLoaderModule.FontLoader);
         console.log('FontLoader loaded and exposed successfully');
+      } else {
+        throw new Error('FontLoader not found in module');
       }
     } catch (err) {
       console.error('Failed to load FontLoader:', err);
@@ -88,9 +102,9 @@ contextBridge.exposeInMainWorld('api', {
 // Expose application paths to the renderer process
 contextBridge.exposeInMainWorld('appPath', {
   // Provide asset path to allow proper texture loading
-  assetsPath: path.join(__dirname, '../assets').replace(/\\\\\\\\/g, '/'),
+  assetsPath: path.join(__dirname, '../assets').replace(/\\/g, '/'),
   // Also provide the application root path for more flexibility
-  rootPath: path.join(__dirname, '..').replace(/\\\\\\\\/g, '/')
+  rootPath: path.join(__dirname, '..').replace(/\\/g, '/')
 });
 
 // Expose file system functions
@@ -110,3 +124,6 @@ contextBridge.exposeInMainWorld('path', {
   basename: (p, ext) => path.basename(p, ext),
   extname: (p) => path.extname(p)
 });
+
+// Log at the end of preload to confirm it loaded completely
+console.log('Preload script completed successfully');
