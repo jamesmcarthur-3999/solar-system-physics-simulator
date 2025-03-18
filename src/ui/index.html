@@ -3,12 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net https://www.solarsystemscope.com;">
+  <!-- Simplified CSP to avoid potential issues -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
   <title>Solar System Simulator</title>
-  <link rel="stylesheet" href="./styles.css">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    
+    #loading-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    
+    .error-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(255, 0, 0, 0.1);
+      border: 1px solid #f00;
+      padding: 20px;
+      border-radius: 5px;
+      color: #f00;
+      text-align: center;
+      max-width: 80%;
+      z-index: 9999;
+    }
+  </style>
 </head>
 <body>
-  <div id="app">
+  <div id="loading-message">
+    <h1>Loading Solar System Simulator...</h1>
+    <p>Please wait while the application initializes</p>
+  </div>
+  
+  <div id="app" style="display: none;">
     <header>
       <h1>Solar System Simulator</h1>
       <div class="controls">
@@ -39,19 +79,46 @@
     </footer>
   </div>
 
-  <!-- Load renderer script -->
-  <script src="./renderer.js" type="module"></script>
-  
-  <!-- Load patch script -->
-  <script src="../renderer-patch.js"></script>
-
-  <!-- Error display -->
-  <div id="error-container" style="display: none;">
-    <div class="error-message">
-      <h2>Error Loading Application</h2>
-      <p id="error-message">An error occurred while loading the application.</p>
-      <p>Please check the console for more details.</p>
-    </div>
-  </div>
+  <!-- Simple initialization script -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM loaded - minimal initialization');
+      
+      // Try to load styles explicitly
+      try {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = './styles.css';
+        document.head.appendChild(link);
+        console.log('Styles loaded');
+      } catch (error) {
+        console.error('Error loading styles:', error);
+      }
+      
+      // After a slight delay, load the main renderer script
+      setTimeout(() => {
+        try {
+          console.log('Loading renderer script...');
+          const script = document.createElement('script');
+          script.src = './renderer.js';
+          script.type = 'module';
+          script.onerror = (err) => console.error('Error loading renderer:', err);
+          document.body.appendChild(script);
+        } catch (error) {
+          console.error('Error loading renderer:', error);
+          
+          // Show error message
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'error-message';
+          errorDiv.innerHTML = `
+            <h2>Error Loading Application</h2>
+            <p>${error.message}</p>
+            <p>Please check the console for more details.</p>
+          `;
+          document.body.appendChild(errorDiv);
+        }
+      }, 500);
+    });
+  </script>
 </body>
 </html>
