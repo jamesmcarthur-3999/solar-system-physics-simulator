@@ -1,7 +1,20 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow, protocol } = require('electron');
+const { app, BrowserWindow, protocol, crashReporter } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+// Disable crash reporter to avoid "not connected" errors
+app.commandLine.appendSwitch('disable-crash-reporter');
+crashReporter.start({ uploadToServer: false });
+
+// Handle uncaught exceptions that might be related to crashpad
+process.on('uncaughtException', (error) => {
+  // Only log errors that aren't related to Crashpad
+  if (!error.message.includes('crashpad_client') && 
+      !error.message.includes('not connected')) {
+    console.error('Uncaught Exception:', error);
+  }
+});
 
 // Keep a global reference of the window object to prevent it from being garbage collected
 let mainWindow;
