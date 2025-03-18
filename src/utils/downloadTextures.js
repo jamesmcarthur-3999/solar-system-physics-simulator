@@ -1,8 +1,8 @@
 // downloadTextures.js - Utility script to download celestial body textures
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
-const { execSync } = require('child_process');
+// Handle both Node.js and browser environments
+const isNode = typeof window === 'undefined';
+const fs = isNode ? require('fs') : window.fs || {};
+const path = isNode ? require('path') : window.path || {};
 
 /**
  * Downloads high-quality textures for the solar system from reliable sources
@@ -27,8 +27,43 @@ const TEXTURE_URLS = {
   'stars_milky_way.jpg': 'https://www.solarsystemscope.com/textures/download/2k_stars_milky_way.jpg',
 };
 
-// Target directory for textures
-const TEXTURE_DIR = path.join(__dirname, '../../assets/textures');
+// Target directory for textures - different handling for Node.js vs browser
+const TEXTURE_DIR = isNode 
+  ? path.join(__dirname, '../../assets/textures')
+  : (window.appPath ? window.appPath.assetsPath + '/textures' : '../assets/textures');
+
+/**
+ * Checks if a file exists (works in both Node.js and browser)
+ * @param {string} filePath - Path to check
+ * @returns {boolean} - Whether the file exists
+ */
+function fileExists(filePath) {
+  if (isNode) {
+    return fs.existsSync(filePath);
+  } else if (fs && typeof fs.existsSync === 'function') {
+    // Use existsSync from preload if available
+    return fs.existsSync(filePath);
+  } else {
+    // Fallback for browser - just assume files don't exist for now
+    console.warn('Cannot check if file exists in browser environment');
+    return false;
+  }
+}
+
+/**
+ * Creates a directory if it doesn't exist (works in both Node.js and browser)
+ * @param {string} dirPath - Path to create
+ */
+function createDirectoryIfNeeded(dirPath) {
+  if (isNode) {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+  } else {
+    // In browser, we can't easily create directories
+    console.log('Directory creation not implemented in browser');
+  }
+}
 
 /**
  * Downloads a file from a URL to a local path
@@ -37,29 +72,40 @@ const TEXTURE_DIR = path.join(__dirname, '../../assets/textures');
  * @returns {Promise<void>}
  */
 function downloadFile(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
-    
-    console.log(`Downloading ${url}...`);
-    
-    https.get(url, (response) => {
-      if (response.statusCode !== 200) {
-        reject(new Error(`Failed to download ${url}, status code: ${response.statusCode}`));
-        return;
-      }
+  if (isNode) {
+    // Node.js environment
+    return new Promise((resolve, reject) => {
+      const https = require('https');
+      const file = fs.createWriteStream(dest);
       
-      response.pipe(file);
+      console.log(`Downloading ${url}...`);
       
-      file.on('finish', () => {
-        file.close();
-        console.log(`Downloaded ${dest}`);
-        resolve();
+      https.get(url, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to download ${url}, status code: ${response.statusCode}`));
+          return;
+        }
+        
+        response.pipe(file);
+        
+        file.on('finish', () => {
+          file.close();
+          console.log(`Downloaded ${dest}`);
+          resolve();
+        });
+      }).on('error', (err) => {
+        fs.unlink(dest, () => {}); // Delete the file if there was an error
+        reject(err);
       });
-    }).on('error', (err) => {
-      fs.unlink(dest, () => {}); // Delete the file if there was an error
-      reject(err);
     });
-  });
+  } else {
+    // Browser environment - use fetch
+    return new Promise((resolve, reject) => {
+      console.log(`Would download ${url} in Node environment`);
+      // In the browser, we can't easily save files, so just log the attempt
+      resolve();
+    });
+  }
 }
 
 /**
@@ -67,17 +113,27 @@ function downloadFile(url, dest) {
  */
 async function downloadAllTextures() {
   try {
+    console.log("Starting texture check/download process...");
+    console.log("Texture directory:", TEXTURE_DIR);
+    
     // Create texture directory if it doesn't exist
-    if (!fs.existsSync(TEXTURE_DIR)) {
-      fs.mkdirSync(TEXTURE_DIR, { recursive: true });
+    createDirectoryIfNeeded(TEXTURE_DIR);
+    
+    // In browser, we don't actually download files, just log attempts
+    if (!isNode) {
+      console.log("Running in browser environment - textures would be downloaded by the Node.js script");
+      console.log("Texture paths are expected to exist already in browser environment");
+      return [];
     }
     
-    // Download each texture
+    // Download each texture in Node.js environment
     const downloads = Object.entries(TEXTURE_URLS).map(([filename, url]) => {
-      const filePath = path.join(TEXTURE_DIR, filename);
+      const filePath = isNode 
+        ? path.join(TEXTURE_DIR, filename)
+        : `${TEXTURE_DIR}/${filename}`;
       
       // Skip if file already exists
-      if (fs.existsSync(filePath)) {
+      if (fileExists(filePath)) {
         console.log(`Skipping ${filename} (already exists)`);
         return Promise.resolve();
       }
@@ -89,16 +145,25 @@ async function downloadAllTextures() {
     await Promise.all(downloads);
     
     console.log('All textures downloaded successfully!');
+    return downloads;
   } catch (error) {
     console.error('Error downloading textures:', error);
+    return [];
   }
 }
 
-// If running this script directly
-if (require.main === module) {
+// If running this script directly in Node.js
+if (isNode && require.main === module) {
   downloadAllTextures();
 }
 
-module.exports = {
-  downloadAllTextures
-};
+// Export for both Node.js and browser environments
+if (isNode) {
+  module.exports = {
+    downloadAllTextures
+  };
+} else {
+  if (typeof window !== 'undefined') {
+    window.downloadAllTextures = downloadAllTextures;
+  }
+}
